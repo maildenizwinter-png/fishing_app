@@ -26,7 +26,6 @@ export default function Home() {
 
     setSessionCount(sessionsThisYear.length);
 
-    // ⏱️ Gesamtzeit
     let totalMinutes = 0;
 
     sessionsThisYear.forEach((s: any) => {
@@ -49,7 +48,6 @@ export default function Home() {
 
     setTotalTime(`${h}h ${m}min`);
 
-    // 🐟 Fische
     const { data: catches } = await supabase.from("catches").select("*");
 
     if (catches) {
@@ -59,7 +57,6 @@ export default function Home() {
       setFishCount(catchesThisYear.length);
     }
 
-    // 🔴 aktive Session
     const storedId = localStorage.getItem("activeSessionId");
 
     if (storedId) {
@@ -98,7 +95,6 @@ export default function Home() {
     setActiveSession(null);
   };
 
-  // 🕒 Session Zeit (UTC → Berlin korrekt)
   const formatSessionTime = (date: string) => {
     const utcDate = new Date(date + "Z");
 
@@ -109,7 +105,6 @@ export default function Home() {
     });
   };
 
-  // 🐟 Catch Zeit (Fix für Supabase Format)
   const formatCatchTime = (date: string) => {
     if (!date) return "-";
 
@@ -129,7 +124,6 @@ export default function Home() {
     }
   };
 
-  // ⏱️ Dauer
   const getDuration = (start: string) => {
     const diff = Date.now() - new Date(start).getTime();
 
@@ -167,19 +161,23 @@ export default function Home() {
       </h1>
 
       {/* Stats */}
-      <div className="space-y-3">
-        <div className="bg-blue-500 text-white p-4 rounded-xl flex justify-between">
-          <span>🐟 Fische</span>
-          <span>{fishCount}</span>
-        </div>
+      <div>
+        <Link href="/catches" className="block mb-3">
+          <div className="bg-blue-500 text-white p-4 rounded-xl flex justify-between cursor-pointer hover:opacity-90">
+            <span>🐟 Fische</span>
+            <span>{fishCount}</span>
+          </div>
+        </Link>
 
-        <div className="bg-green-500 text-white p-4 rounded-xl flex justify-between">
-          <span>🎣 Sessions</span>
-          <span>{sessionCount}</span>
-        </div>
+        <Link href="/sessions" className="block mb-3">
+          <div className="bg-green-500 text-white p-4 rounded-xl flex justify-between cursor-pointer hover:opacity-90">
+            <span>🎣 Sessions</span>
+            <span>{sessionCount}</span>
+          </div>
+        </Link>
 
         <div className="bg-orange-500 text-white p-4 rounded-xl flex justify-between">
-          <span>⏱️ Zeit</span>
+          <span>⏱️ Zeit am Wasser</span>
           <span>{totalTime}</span>
         </div>
       </div>
