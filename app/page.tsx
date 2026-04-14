@@ -1,195 +1,235 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import Link from "next/link";
 
 export default function Home() {
-  const [fish, setFish] = useState("");
-  const [subFish, setSubFish] = useState("");
-  const [subFishOptions, setSubFishOptions] = useState<string[]>([]);
+  const [fishCount, setFishCount] = useState(0);
+  const [sessionCount, setSessionCount] = useState(0);
+  const [totalTime, setTotalTime] = useState("");
+  const [activeSession, setActiveSession] = useState<any>(null);
+  const [sessionCatches, setSessionCatches] = useState<any[]>([]);
 
-  const [length, setLength] = useState("");
-  const [weight, setWeight] = useState("");
-  const [method, setMethod] = useState("");
-  const [bait, setBait] = useState("");
-  const [weather, setWeather] = useState("");
-  const [rating, setRating] = useState("");
-  const [status, setStatus] = useState("");
-  const [location, setLocation] = useState("");
-  const [locationDetail, setLocationDetail] = useState("");
-  const [waterTemp, setWaterTemp] = useState("");
-  const [notes, setNotes] = useState("");
+  const currentYear = new Date().getFullYear();
 
-  const handleFishChange = (value: string) => {
-    setFish(value);
-    setSubFish("");
+  useEffect(() => {
+    loadData();
+  }, []);
 
-    if (value === "Karpfen") {
-      setSubFishOptions([
-        "Schuppenkarpfen",
-        "Spiegelkarpfen",
-        "Graskarpfen",
-      ]);
-    } else if (value === "Forelle") {
-      setSubFishOptions([
-        "Regenbogenforelle",
-        "Bachforelle",
-        "Seeforelle",
-      ]);
+  const loadData = async () => {
+    const { data: sessions } = await supabase.from("sessions").select("*");
+    if (!sessions) return;
+
+    const sessionsThisYear = sessions.filter((s: any) =>
+      s.start_time?.startsWith(currentYear.toString())
+    );
+
+    setSessionCount(sessionsThisYear.length);
+
+    // ⏱️ Gesamtzeit
+    let totalMinutes = 0;
+
+    sessionsThisYear.forEach((s: any) => {
+      if (!s.start_time) return;
+
+      const start = new Date(s.start_time).getTime();
+      const end = s.end_time
+        ? new Date(s.end_time).getTime()
+        : Date.now();
+
+      let diffMinutes = Math.floor((end - start) / (1000 * 60));
+
+      if (diffMinutes > 0 && diffMinutes < 24 * 60) {
+        totalMinutes += diffMinutes;
+      }
+    });
+
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+
+    setTotalTime(`${h}h ${m}min`);
+
+    // 🐟 Fische
+    const { data: catches } = await supabase.from("catches").select("*");
+
+    if (catches) {
+      const catchesThisYear = catches.filter((c: any) =>
+        c.created_at?.slice(0, 4) === currentYear.toString()
+      );
+      setFishCount(catchesThisYear.length);
+    }
+
+    // 🔴 aktive Session
+    const storedId = localStorage.getItem("activeSessionId");
+
+    if (storedId) {
+      const { data } = await supabase
+        .from("sessions")
+        .select("*")
+        .eq("id", storedId)
+        .single();
+
+      setActiveSession(data);
+
+      const { data: catches } = await supabase
+        .from("catches")
+        .select("*")
+        .eq("session_id", storedId)
+        .order("created_at", { ascending: false });
+
+      setSessionCatches(catches || []);
     } else {
-      setSubFishOptions([]);
+      setActiveSession(null);
     }
   };
 
-  const handleSubmit = async (e: any) => {
-    e.preventDefault();
+  const endSession = async () => {
+    if (!activeSession) return;
 
-    const { error } = await supabase.from("catches").insert([
-      {
-        fish,
-        sub_fish: subFish,
-        length_cm: length ? Number(length) : null,
-        weight_g: weight ? Number(weight) : null,
-        method,
-        bait,
-        weather,
-        rating: rating ? Number(rating) : null,
-        status,
-        location,
-        location_detail: locationDetail,
-        water_temp: waterTemp ? Number(waterTemp) : null,
-        notes,
-      },
-    ]);
+    const confirmEnd = confirm("Session wirklich beenden?");
+    if (!confirmEnd) return;
 
-    if (error) {
-      alert("Fehler beim Speichern");
-      console.log(error);
-    } else {
-      alert("Fang gespeichert 🎣");
+    await supabase
+      .from("sessions")
+      .update({ end_time: new Date().toISOString() })
+      .eq("id", activeSession.id);
+
+    localStorage.removeItem("activeSessionId");
+    setActiveSession(null);
+  };
+
+  // 🕒 Session Zeit (UTC → Berlin korrekt)
+  const formatSessionTime = (date: string) => {
+    const utcDate = new Date(date + "Z");
+
+    return utcDate.toLocaleTimeString("de-DE", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "Europe/Berlin",
+    });
+  };
+
+  // 🐟 Catch Zeit (Fix für Supabase Format)
+  const formatCatchTime = (date: string) => {
+    if (!date) return "-";
+
+    try {
+      const iso = date.replace(" ", "T");
+      const d = new Date(iso);
+
+      if (isNaN(d.getTime())) return "-";
+
+      return d.toLocaleTimeString("de-DE", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "Europe/Berlin",
+      });
+    } catch {
+      return "-";
     }
+  };
+
+  // ⏱️ Dauer
+  const getDuration = (start: string) => {
+    const diff = Date.now() - new Date(start).getTime();
+
+    let totalMin = Math.floor(diff / (1000 * 60));
+    totalMin = totalMin - 120;
+
+    if (totalMin < 0) totalMin = 0;
+
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+
+    return `${h}h ${m}min`;
   };
 
   return (
-    <main className="p-6 max-w-xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Fang eintragen 🎣</h1>
+    <main className="p-6 max-w-xl mx-auto space-y-6">
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Navigation */}
+      <div className="flex gap-2">
+        <Link href="/" className="flex-1 bg-gray-200 p-2 text-center rounded">
+          Dashboard
+        </Link>
 
-        {/* Fisch */}
-        <select onChange={(e) => handleFishChange(e.target.value)} className="w-full border p-2">
-          <option>Fisch wählen</option>
+        <Link href="/sessions" className="flex-1 bg-gray-200 p-2 text-center rounded">
+          Sessions
+        </Link>
 
-          <option>Forelle</option>
-          <option>Karpfen</option>
+        <Link href="/catches" className="flex-1 bg-gray-200 p-2 text-center rounded">
+          Fische
+        </Link>
+      </div>
 
-          <option>Äsche</option>
-          <option>Bachsaibling</option>
-          <option>Felchen</option>
-          <option>Hecht</option>
-          <option>Wels</option>
-          <option>Zander</option>
-          <option>Barsch</option>
-          <option>Rapfen</option>
-          <option>Schleie</option>
-          <option>Brasse</option>
-          <option>Rotauge</option>
-          <option>Rotfeder</option>
-          <option>Nase</option>
-          <option>Barbe</option>
-          <option>Döbel</option>
-          <option>Maifisch</option>
-          <option>Aal</option>
+      <h1 className="text-3xl font-bold">
+        Mein Dashboard {currentYear}
+      </h1>
 
-          <option>Sonstiges</option>
-        </select>
+      {/* Stats */}
+      <div className="space-y-3">
+        <div className="bg-blue-500 text-white p-4 rounded-xl flex justify-between">
+          <span>🐟 Fische</span>
+          <span>{fishCount}</span>
+        </div>
 
-        {/* Unterart */}
-        {subFishOptions.length > 0 && (
-          <select onChange={(e) => setSubFish(e.target.value)} className="w-full border p-2">
-            <option>Unterart wählen</option>
-            {subFishOptions.map((f) => (
-              <option key={f}>{f}</option>
+        <div className="bg-green-500 text-white p-4 rounded-xl flex justify-between">
+          <span>🎣 Sessions</span>
+          <span>{sessionCount}</span>
+        </div>
+
+        <div className="bg-orange-500 text-white p-4 rounded-xl flex justify-between">
+          <span>⏱️ Zeit</span>
+          <span>{totalTime}</span>
+        </div>
+      </div>
+
+      {/* Session */}
+      {!activeSession ? (
+        <Link href="/session">
+          <button className="bg-green-500 text-white p-3 w-full rounded-xl">
+            ▶️ Neue Session starten
+          </button>
+        </Link>
+      ) : (
+        <div className="border p-4 rounded space-y-3 bg-green-100">
+
+          <h2 className="font-bold">🔴 Laufende Session</h2>
+
+          <p>🎣 <strong>{activeSession.location}</strong></p>
+          <p>🕒 Start: {formatSessionTime(activeSession.start_time)}</p>
+          <p>⏱️ Dauer: {getDuration(activeSession.start_time)}</p>
+
+          <div className="space-y-2">
+            <h3 className="font-bold">Fänge</h3>
+
+            {sessionCatches.length === 0 && <p>Keine Fänge</p>}
+
+            {sessionCatches.map((c: any) => (
+              <div key={c.id} className="bg-white p-2 rounded border">
+                <p><strong>{c.fish || "-"}</strong></p>
+                <p>
+                  {c.length_cm ? `${c.length_cm} cm` : "-"} • {c.status || "-"}
+                </p>
+                <p>{formatCatchTime(c.created_at)}</p>
+              </div>
             ))}
-          </select>
-        )}
+          </div>
 
-        <input placeholder="Länge cm" type="number" onChange={(e) => setLength(e.target.value)} className="w-full border p-2" />
-        <input placeholder="Gewicht g" type="number" onChange={(e) => setWeight(e.target.value)} className="w-full border p-2" />
+          <Link href="/new">
+            <button className="bg-blue-500 text-white p-2 w-full rounded">
+              ➕ Fang hinzufügen
+            </button>
+          </Link>
 
-        {/* Angelart */}
-        <select onChange={(e) => setMethod(e.target.value)} className="w-full border p-2">
-          <option>Angelart</option>
-          <option>Spinnfischen</option>
-          <option>Grund</option>
-          <option>Pose</option>
-          <option>Fliege</option>
-          <option>Sonstiges</option>
-        </select>
-
-        {/* Köder */}
-        <select onChange={(e) => setBait(e.target.value)} className="w-full border p-2">
-          <option>Köder wählen</option>
-          <option>Wurm Dendro</option>
-          <option>Wurm Tauwurm</option>
-          <option>Wurm Gummi</option>
-          <option>Made</option>
-          <option>Mais</option>
-          <option>Fliege</option>
-          <option>Köderfisch</option>
-          <option>Spinner</option>
-          <option>Blinker</option>
-          <option>Wobbler</option>
-          <option>Mepps</option>
-          <option>Gummifisch</option>
-          <option>Teig</option>
-          <option>Boilie</option>
-        </select>
-
-        {/* Wetter */}
-        <select onChange={(e) => setWeather(e.target.value)} className="w-full border p-2">
-          <option>Wetter</option>
-          <option>Sonnig</option>
-          <option>Leicht bewölkt</option>
-          <option>Wolkig</option>
-          <option>Regen</option>
-          <option>Gewitter</option>
-        </select>
-
-        {/* Bewertung */}
-        <select onChange={(e) => setRating(e.target.value)} className="w-full border p-2">
-          <option>Bewertung</option>
-          <option>0</option>
-          <option>1</option>
-          <option>2</option>
-          <option>3</option>
-          <option>4</option>
-          <option>5</option>
-        </select>
-
-        {/* Status */}
-        <select onChange={(e) => setStatus(e.target.value)} className="w-full border p-2">
-          <option>Status</option>
-          <option>Entnommen</option>
-          <option>Zurückgesetzt</option>
-        </select>
-
-        {/* Ort */}
-        <select onChange={(e) => setLocation(e.target.value)} className="w-full border p-2">
-          <option>Ort</option>
-          <option>Obere Argen</option>
-          <option>Doppelargen</option>
-          <option>Weiher</option>
-          <option>Anderes Gewässer</option>
-        </select>
-
-        <input placeholder="Ort Zusatz" onChange={(e) => setLocationDetail(e.target.value)} className="w-full border p-2" />
-
-        <input placeholder="Wassertemperatur" type="number" onChange={(e) => setWaterTemp(e.target.value)} className="w-full border p-2" />
-
-        <textarea placeholder="Besonderheiten" onChange={(e) => setNotes(e.target.value)} className="w-full border p-2"></textarea>
-
-        <button className="bg-blue-500 text-white p-2 w-full">Speichern</button>
-      </form>
+          <button
+            onClick={endSession}
+            className="bg-red-500 text-white p-2 w-full rounded"
+          >
+            ⏹️ Session beenden
+          </button>
+        </div>
+      )}
     </main>
   );
 }
