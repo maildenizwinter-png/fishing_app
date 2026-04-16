@@ -9,6 +9,7 @@ export default function Home() {
   const [totalTime, setTotalTime] = useState("");
   const [activeSession, setActiveSession] = useState<any>(null);
   const [sessionCatches, setSessionCatches] = useState<any[]>([]);
+  const [lastCatch, setLastCatch] = useState<any>(null);
 
   const currentYear = new Date().getFullYear();
 
@@ -39,8 +40,6 @@ export default function Home() {
             pressure: data.main?.pressure ?? null,
             weather: data.weather?.[0]?.main ?? null,
           }]);
-
-          console.log("🌦️ Wetter-Log gespeichert");
         } catch {
           console.log("Wetter-Log fehlgeschlagen");
         }
@@ -69,11 +68,16 @@ export default function Home() {
 
     setTotalTime(`${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}min`);
 
-    const { data: catches } = await supabase.from("catches").select("*");
+    const { data: catches } = await supabase
+      .from("catches")
+      .select("*, sessions(location)")
+      .order("created_at", { ascending: false });
+
     if (catches) {
       setFishCount(catches.filter((c: any) =>
         c.created_at?.slice(0, 4) === currentYear.toString()
       ).length);
+      setLastCatch(catches[0] || null);
     }
 
     const storedId = localStorage.getItem("activeSessionId");
@@ -87,7 +91,6 @@ export default function Home() {
         .order("created_at", { ascending: false });
       setSessionCatches(sc || []);
 
-      // 🌦️ Wetter beim App-Laden loggen
       logWeather(Number(storedId));
     } else {
       setActiveSession(null);
@@ -115,6 +118,15 @@ export default function Home() {
     if (!date) return "-";
     return new Date(date.replace(" ", "T")).toLocaleTimeString("de-DE", {
       hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin",
+    });
+  };
+
+  const formatCatchDate = (date: string) => {
+    if (!date) return "-";
+    return new Date(date.replace(" ", "T")).toLocaleString("de-DE", {
+      day: "2-digit", month: "2-digit", year: "numeric",
+      hour: "2-digit", minute: "2-digit",
+      timeZone: "Europe/Berlin",
     });
   };
 
@@ -153,18 +165,18 @@ export default function Home() {
 
         <div className="bg-gray-800 rounded-2xl p-4 flex flex-col items-center gap-1">
           <span className="text-2xl">⏱️</span>
-          <span className="text-xl font-bold text-white">{totalTime}</span>
-          <span className="text-xs text-gray-400">Zeit am Wasser</span>
+          <span className="text-sm font-bold text-white text-center leading-tight">{totalTime}</span>
+          <span className="text-xs text-gray-400 text-center">Zeit am Wasser</span>
         </div>
       </div>
 
       {/* AKTIVE SESSION oder START BUTTON */}
       {!activeSession ? (
         <Link href="/session">
-          <div className="bg-blue-600 hover:bg-blue-500 transition rounded-2xl p-5 flex items-center justify-between shadow-lg">
+          <div className="bg-green-600 hover:bg-green-500 transition rounded-2xl p-5 flex items-center justify-between shadow-lg">
             <div>
               <p className="text-white font-bold text-lg">Neue Session</p>
-              <p className="text-blue-200 text-sm">Angelzeit starten</p>
+              <p className="text-green-200 text-sm">Angelzeit starten</p>
             </div>
             <span className="text-3xl">▶️</span>
           </div>
@@ -185,7 +197,6 @@ export default function Home() {
             <p className="text-gray-400 text-sm">🕒 Start: {formatTime(activeSession.start_time)}</p>
           </div>
 
-          {/* Fänge */}
           <div className="space-y-2">
             <p className="text-gray-400 text-xs uppercase tracking-wider">Fänge dieser Session</p>
             {sessionCatches.length === 0 ? (
@@ -218,6 +229,57 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* LETZTER FANG */}
+      {!activeSession && lastCatch && (
+        <div className="bg-gray-800 rounded-2xl overflow-hidden">
+          <div className="px-4 pt-4 pb-2">
+            <p className="text-gray-400 text-xs uppercase tracking-wider">Letzter Fang</p>
+          </div>
+
+          {lastCatch.image_url && (
+            <img
+              src={lastCatch.image_url}
+              alt={lastCatch.fish}
+              className="w-full h-48 object-cover"
+            />
+          )}
+
+          <div className="p-4 space-y-2">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-white font-bold text-lg">
+                  {lastCatch.fish}
+                  {lastCatch.sub_fish && (
+                    <span className="text-gray-400 font-normal text-sm ml-2">{lastCatch.sub_fish}</span>
+                  )}
+                </p>
+                <p className="text-gray-400 text-sm">
+                  {lastCatch.length_cm ? `📏 ${lastCatch.length_cm} cm` : ""}
+                  {lastCatch.weight_g ? `  ⚖️ ${lastCatch.weight_g} g` : ""}
+                </p>
+              </div>
+              <span className={`text-xs px-2 py-1 rounded-full ${
+                lastCatch.status === "Zurückgesetzt"
+                  ? "bg-blue-600/20 text-blue-400"
+                  : "bg-orange-600/20 text-orange-400"
+              }`}>
+                {lastCatch.status || "-"}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap gap-3 text-xs text-gray-400">
+              {lastCatch.sessions?.location && <span>📍 {lastCatch.sessions.location}</span>}
+              {lastCatch.method && <span>🎣 {lastCatch.method}</span>}
+              {lastCatch.weather && <span>🌦️ {lastCatch.weather}</span>}
+              {lastCatch.temperature && <span>🌡️ {lastCatch.temperature}°C</span>}
+            </div>
+
+            <p className="text-gray-600 text-xs">{formatCatchDate(lastCatch.created_at)}</p>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
