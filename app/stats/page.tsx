@@ -11,6 +11,7 @@ const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"
 export default function StatsPage() {
   const [catches, setCatches] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
+  const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -20,7 +21,7 @@ export default function StatsPage() {
   const load = async () => {
     const { data: catchData } = await supabase
       .from("catches")
-      .select("*, sessions(location)")
+      .select("*, sessions(location, pressure)")
       .order("created_at", { ascending: true });
 
     const { data: sessionData } = await supabase
@@ -28,8 +29,14 @@ export default function StatsPage() {
       .select("*, catches(count)")
       .order("start_time", { ascending: true });
 
+    const { data: logData } = await supabase
+      .from("session_logs")
+      .select("*")
+      .order("created_at", { ascending: true });
+
     setCatches(catchData || []);
     setSessions(sessionData || []);
+    setLogs(logData || []);
     setLoading(false);
   };
 
@@ -118,7 +125,6 @@ export default function StatsPage() {
   // ❌ Sessions ohne Fang
   const emptySession = sessions.filter((s) => s.catches?.[0]?.count === 0);
 
-  // ❌ Sessions ohne Fang pro Gewässer
   const emptyPerLocation: Record<string, number> = {};
   emptySession.forEach((s) => {
     const loc = s.location || "Unbekannt";
@@ -127,7 +133,6 @@ export default function StatsPage() {
   const emptyLocationData = Object.entries(emptyPerLocation)
     .map(([name, count]) => ({ name, count }));
 
-  // ❌ Luftdruck bei Sessions ohne Fang
   const emptyPressureData = emptySession
     .filter((s) => s.pressure && s.start_time)
     .map((s) => {
@@ -138,7 +143,6 @@ export default function StatsPage() {
       };
     });
 
-  // ❌ Tageszeit bei Sessions ohne Fang
   const emptyPerHour: Record<string, number> = {};
   emptySession.forEach((s) => {
     if (!s.start_time) return;
@@ -149,6 +153,50 @@ export default function StatsPage() {
   const emptyHourData = Object.entries(emptyPerHour)
     .sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
     .map(([name, count]) => ({ name, count }));
+
+  // 📈 Steigender / fallender Luftdruck bei Fängen
+  const trendCounts = { steigend: 0, fallend: 0, gleichbleibend: 0 };
+
+  catches.forEach((c) => {
+    if (!c.pressure || !c.created_at || !c.session_id) return;
+
+    const catchTime = new Date(c.created_at.replace(" ", "T")).getTime();
+
+    // Alle Logs dieser Session vor dem Fangzeitpunkt
+    const sessionLogs = logs
+      .filter((l) =>
+        l.session_id === c.session_id &&
+        l.pressure &&
+        new Date(l.created_at).getTime() < catchTime
+      )
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+    // Session-Start Druck als erster Wert
+    const sessionStart = sessions.find((s) => s.id === c.session_id);
+    const allPressures: number[] = [];
+
+    if (sessionStart?.pressure) allPressures.push(sessionStart.pressure);
+    sessionLogs.forEach((l) => allPressures.push(l.pressure));
+
+    // Letzten 3 Werte nehmen
+    const last3 = allPressures.slice(-3);
+
+    if (last3.length < 2) return;
+
+    const first = last3[0];
+    const last = last3[last3.length - 1];
+    const diff = last - first;
+
+    if (diff > 0.5) trendCounts.steigend++;
+    else if (diff < -0.5) trendCounts.fallend++;
+    else trendCounts.gleichbleibend++;
+  });
+
+  const trendData = [
+    { name: "📈 Steigend", count: trendCounts.steigend, fill: "#10b981" },
+    { name: "📉 Fallend", count: trendCounts.fallend, fill: "#ef4444" },
+    { name: "➡️ Gleich", count: trendCounts.gleichbleibend, fill: "#f59e0b" },
+  ];
 
   return (
     <div className="p-4 max-w-xl mx-auto space-y-8">
@@ -272,6 +320,28 @@ export default function StatsPage() {
               <YAxis type="category" dataKey="name" tick={{ fill: "#9ca3af", fontSize: 11 }} width={80} />
               <Tooltip contentStyle={{ backgroundColor: "#1f2937", border: "none", borderRadius: "8px", color: "#fff" }} />
               <Bar dataKey="cm" fill="#ec4899" radius={[0, 6, 6, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
+      {/* Luftdruck Trend bei Fängen */}
+      <div className="bg-gray-800 rounded-2xl p-4 space-y-3">
+        <h2 className="text-white font-bold">📈 Luftdrucktrend bei Fängen</h2>
+        <p className="text-gray-500 text-xs">Basierend auf den letzten 3 Messwerten vor dem Fang</p>
+        {trendData.every((t) => t.count === 0) ? (
+          <p className="text-gray-500 text-sm">Nicht genug Daten vorhanden</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={trendData}>
+              <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 11 }} />
+              <YAxis tick={{ fill: "#9ca3af", fontSize: 11 }} />
+              <Tooltip contentStyle={{ backgroundColor: "#1f2937", border: "none", borderRadius: "8px", color: "#fff" }} />
+              <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                {trendData.map((entry, index) => (
+                  <Cell key={index} fill={entry.fill} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         )}

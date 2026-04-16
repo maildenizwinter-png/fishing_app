@@ -3,6 +3,10 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import {
+  LineChart, Line, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, ReferenceLine, Dot
+} from "recharts";
 
 export default function SessionDetailPage() {
   const { id } = useParams();
@@ -10,6 +14,7 @@ export default function SessionDetailPage() {
 
   const [session, setSession] = useState<any>(null);
   const [catches, setCatches] = useState<any[]>([]);
+  const [logs, setLogs] = useState<any[]>([]);
   const [galleryImage, setGalleryImage] = useState<string | null>(null);
 
   const load = async () => {
@@ -26,6 +31,13 @@ export default function SessionDetailPage() {
       .eq("session_id", id)
       .order("created_at", { ascending: true });
     setCatches(catchData || []);
+
+    const { data: logData } = await supabase
+      .from("session_logs")
+      .select("*")
+      .eq("session_id", id)
+      .order("created_at", { ascending: true });
+    setLogs(logData || []);
   };
 
   useEffect(() => {
@@ -54,6 +66,83 @@ export default function SessionDetailPage() {
       hour: "2-digit", minute: "2-digit",
       timeZone: "Europe/Berlin",
     });
+  };
+
+  // Luftdruck Chart Daten
+  const buildChartData = () => {
+    const points: any[] = [];
+
+    // Session Start
+    if (session?.pressure && session?.start_time) {
+      points.push({
+        time: new Date(session.start_time + "Z").toLocaleTimeString("de-DE", {
+          hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin"
+        }),
+        druck: session.pressure,
+        fang: null,
+        timestamp: new Date(session.start_time).getTime(),
+      });
+    }
+
+    // Session Logs
+    logs.forEach((log) => {
+      if (!log.pressure || !log.created_at) return;
+      const t = new Date(log.created_at);
+      points.push({
+        time: t.toLocaleTimeString("de-DE", {
+          hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin"
+        }),
+        druck: log.pressure,
+        fang: null,
+        timestamp: t.getTime(),
+      });
+    });
+
+    // Fänge einzeichnen
+    catches.forEach((c) => {
+      if (!c.pressure || !c.created_at) return;
+      const t = new Date(c.created_at.replace(" ", "T"));
+      points.push({
+        time: t.toLocaleTimeString("de-DE", {
+          hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin"
+        }),
+        druck: c.pressure,
+        fang: c.fish,
+        timestamp: t.getTime(),
+      });
+    });
+
+    return points.sort((a, b) => a.timestamp - b.timestamp);
+  };
+
+  const chartData = buildChartData();
+
+  // Custom Dot für Fänge
+  const CustomDot = (props: any) => {
+    const { cx, cy, payload } = props;
+    if (payload.fang) {
+      return (
+        <g>
+          <circle cx={cx} cy={cy} r={8} fill="#3b82f6" stroke="#fff" strokeWidth={2} />
+          <text x={cx} y={cy - 14} textAnchor="middle" fill="#fff" fontSize={12}>🐟</text>
+        </g>
+      );
+    }
+    return <circle cx={cx} cy={cy} r={3} fill="#f59e0b" />;
+  };
+
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const d = payload[0].payload;
+      return (
+        <div className="bg-gray-900 border border-gray-700 rounded-xl p-3 text-sm">
+          <p className="text-gray-400">{d.time}</p>
+          <p className="text-white font-bold">{d.druck} hPa</p>
+          {d.fang && <p className="text-blue-400">🐟 {d.fang}</p>}
+        </div>
+      );
+    }
+    return null;
   };
 
   if (!session) return (
@@ -114,6 +203,28 @@ export default function SessionDetailPage() {
           {session.pressure && <span>💨 {session.pressure} hPa</span>}
         </div>
       </div>
+
+      {/* LUFTDRUCK CHART */}
+      {chartData.length > 1 && (
+        <div className="bg-gray-800 rounded-2xl p-4 space-y-3">
+          <h2 className="text-white font-bold">💨 Luftdruckverlauf</h2>
+          <p className="text-gray-500 text-xs">🐟 = Fang bei diesem Luftdruck</p>
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={chartData}>
+              <XAxis dataKey="time" tick={{ fill: "#9ca3af", fontSize: 10 }} />
+              <YAxis domain={["auto", "auto"]} tick={{ fill: "#9ca3af", fontSize: 10 }} unit=" hPa" width={60} />
+              <Tooltip content={<CustomTooltip />} />
+              <Line
+                type="monotone"
+                dataKey="druck"
+                stroke="#f59e0b"
+                strokeWidth={2}
+                dot={<CustomDot />}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
 
       {/* FÄNGE */}
       <div className="space-y-3">
