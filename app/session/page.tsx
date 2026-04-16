@@ -10,7 +10,6 @@ export default function SessionPage() {
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<"now" | "manual">("now");
 
-  // Manuelle Zeiten
   const [manualStart, setManualStart] = useState("");
   const [manualEnd, setManualEnd] = useState("");
 
@@ -85,7 +84,6 @@ export default function SessionPage() {
       return;
     }
 
-    // Bei manueller Erfassung keine aktive Session setzen
     if (mode === "now") {
       setSessionId(data.id);
       localStorage.setItem("activeSessionId", data.id.toString());
@@ -98,8 +96,6 @@ export default function SessionPage() {
           ...env,
         }]);
       }, 30000);
-    } else {
-      // Manuelle Session → keine aktive Session setzen
     }
 
     setLoading(false);
@@ -123,7 +119,7 @@ export default function SessionPage() {
           onClick={() => setMode("now")}
           className={`py-3 rounded-xl font-semibold transition ${
             mode === "now"
-              ? "bg-green-600 text-white"
+              ? "bg-blue-600 text-white"
               : "bg-gray-800 text-gray-400"
           }`}
         >
@@ -145,17 +141,17 @@ export default function SessionPage() {
       <div className="space-y-2">
         <label className={labelClass}>Gewässer</label>
         <input
-  list="gewässer-list"
-  value={location}
-  onChange={(e) => setLocation(e.target.value)}
-  placeholder="Gewässer wählen oder eingeben"
-  className={inputClass}
-/>
-<datalist id="gewässer-list">
-  <option value="Obere Argen" />
-  <option value="Doppelargen" />
-  <option value="Weiher Neuravensburg" />
-</datalist>
+          list="gewässer-list"
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+          placeholder="Gewässer wählen oder eingeben"
+          className={inputClass}
+        />
+        <datalist id="gewässer-list">
+          <option value="Obere Argen" />
+          <option value="Doppelargen" />
+          <option value="Weiher Neuravensburg" />
+        </datalist>
       </div>
 
       {/* Begleiter */}
