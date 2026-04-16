@@ -1,7 +1,9 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import ReactCrop, { type Crop } from "react-image-crop";
+import "react-image-crop/dist/ReactCrop.css";
 
 export default function NewCatchPage() {
   const router = useRouter();
@@ -31,6 +33,12 @@ export default function NewCatchPage() {
 
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  // Crop States
+  const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
+  const [crop, setCrop] = useState<Crop>({ unit: "%", x: 10, y: 10, width: 80, height: 80 });
+  const [showCrop, setShowCrop] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
     const storedId = localStorage.getItem("activeSessionId");
@@ -75,32 +83,43 @@ export default function NewCatchPage() {
     }
   };
 
-  const compressImage = (file: File): Promise<Blob> => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      const url = URL.createObjectURL(file);
-      img.src = url;
-      img.onload = () => {
-        const maxWidth = 1200;
-        const scale = Math.min(1, maxWidth / img.width);
-        const canvas = document.createElement("canvas");
-        canvas.width = img.width * scale;
-        canvas.height = img.height * scale;
-        const ctx = canvas.getContext("2d");
-        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-        URL.revokeObjectURL(url);
-        canvas.toBlob((blob) => resolve(blob!), "image/jpeg", 0.75);
-      };
-    });
-  };
-
-  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const compressed = await compressImage(file);
-    const compressedFile = new File([compressed], file.name, { type: "image/jpeg" });
-    setImage(compressedFile);
-    setImagePreview(URL.createObjectURL(compressed));
+    const url = URL.createObjectURL(file);
+    setRawImageSrc(url);
+    setShowCrop(true);
+  };
+
+  const applyCrop = async () => {
+    if (!imgRef.current || !rawImageSrc) return;
+
+    const img = imgRef.current;
+    const scaleX = img.naturalWidth / img.width;
+    const scaleY = img.naturalHeight / img.height;
+
+    const canvas = document.createElement("canvas");
+    const cropX = (crop.x / 100) * img.width * scaleX;
+    const cropY = (crop.y / 100) * img.height * scaleY;
+    const cropW = (crop.width / 100) * img.width * scaleX;
+    const cropH = (crop.height / 100) * img.height * scaleY;
+
+    const maxWidth = 1200;
+    const scale = Math.min(1, maxWidth / cropW);
+    canvas.width = cropW * scale;
+    canvas.height = cropH * scale;
+
+    const ctx = canvas.getContext("2d");
+    ctx?.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const file = new File([blob], "crop.jpg", { type: "image/jpeg" });
+      setImage(file);
+      setImagePreview(URL.createObjectURL(blob));
+      setShowCrop(false);
+      setRawImageSrc(null);
+    }, "image/jpeg", 0.75);
   };
 
   const getWeatherData = async () => {
@@ -138,34 +157,27 @@ export default function NewCatchPage() {
 
   const handleSubmit = async () => {
     const sessionId = activeSessionId || selectedSessionId;
-
     if (!sessionId) {
       alert("Bitte eine Session auswählen ❌");
       return;
     }
 
     setSaving(true);
-
     const weatherData = activeSessionId ? await getWeatherData() : {};
     const imageUrl = await uploadImage();
-
     const catchTime = manualTime
       ? new Date(manualTime).toISOString()
       : new Date().toISOString();
 
     const { error } = await supabase.from("catches").insert([{
       session_id: sessionId,
-      fish,
-      sub_fish: subFish,
+      fish, sub_fish: subFish,
       length_cm: length ? Number(length) : null,
       weight_g: weight ? Number(weight) : null,
-      method,
-      bait,
-      status,
+      method, bait, status,
       location_detail: locationDetail,
       water_temp: waterTemp ? Number(waterTemp) : null,
-      notes,
-      image_url: imageUrl,
+      notes, image_url: imageUrl,
       created_at: catchTime,
       ...weatherData,
     }]);
@@ -194,6 +206,39 @@ export default function NewCatchPage() {
   return (
     <div className="p-4 max-w-xl mx-auto space-y-5">
 
+      {/* CROP MODAL */}
+      {showCrop && rawImageSrc && (
+        <div className="fixed inset-0 bg-black/95 z-50 flex flex-col items-center justify-center p-4 gap-4">
+          <p className="text-white font-bold text-lg">Bildausschnitt wählen</p>
+          <ReactCrop
+            crop={crop}
+            onChange={(c) => setCrop(c)}
+            className="max-h-[70vh]"
+          >
+            <img
+              ref={imgRef}
+              src={rawImageSrc}
+              alt="Crop"
+              className="max-h-[70vh] object-contain"
+            />
+          </ReactCrop>
+          <div className="flex gap-3 w-full">
+            <button
+              onClick={() => { setShowCrop(false); setRawImageSrc(null); }}
+              className="flex-1 bg-gray-700 text-white py-3 rounded-xl"
+            >
+              Abbrechen
+            </button>
+            <button
+              onClick={applyCrop}
+              className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold"
+            >
+              ✂️ Ausschnitt verwenden
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="pt-4">
         <h1 className="text-2xl font-bold text-white">🐟 Neuer Fang</h1>
         <p className="text-gray-400 text-sm">
@@ -201,38 +246,23 @@ export default function NewCatchPage() {
         </p>
       </div>
 
-      {/* Session wählen wenn keine aktive Session */}
       {!activeSessionId && (
         <div className="space-y-2">
           <label className={labelClass}>Session</label>
-          <select
-            onChange={(e) => setSelectedSessionId(Number(e.target.value))}
-            className={inputClass}
-          >
+          <select onChange={(e) => setSelectedSessionId(Number(e.target.value))} className={inputClass}>
             <option value="">Session wählen</option>
             {sessions.map((s) => (
-              <option key={s.id} value={s.id}>
-                {formatSessionLabel(s)}
-              </option>
+              <option key={s.id} value={s.id}>{formatSessionLabel(s)}</option>
             ))}
           </select>
         </div>
       )}
 
-      {/* Zeitpunkt des Fangs */}
       <div className="space-y-2">
-        <label className={labelClass}>
-          Zeitpunkt {activeSessionId ? "(optional – leer = jetzt)" : ""}
-        </label>
-        <input
-          type="datetime-local"
-          value={manualTime}
-          onChange={(e) => setManualTime(e.target.value)}
-          className={inputClass}
-        />
+        <label className={labelClass}>Zeitpunkt {activeSessionId ? "(optional – leer = jetzt)" : ""}</label>
+        <input type="datetime-local" value={manualTime} onChange={(e) => setManualTime(e.target.value)} className={inputClass} />
       </div>
 
-      {/* Fischart */}
       <div className="space-y-2">
         <label className={labelClass}>Fischart</label>
         <select onChange={(e) => handleFishChange(e.target.value)} className={inputClass}>
@@ -269,29 +299,17 @@ export default function NewCatchPage() {
         </div>
       )}
 
-      {/* Maße */}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
           <label className={labelClass}>Länge (cm)</label>
-          <input
-            placeholder="z.B. 45"
-            type="number"
-            onChange={(e) => setLength(e.target.value)}
-            className={inputClass}
-          />
+          <input placeholder="z.B. 45" type="number" onChange={(e) => setLength(e.target.value)} className={inputClass} />
         </div>
         <div className="space-y-2">
           <label className={labelClass}>Gewicht (g)</label>
-          <input
-            placeholder="z.B. 1200"
-            type="number"
-            onChange={(e) => setWeight(e.target.value)}
-            className={inputClass}
-          />
+          <input placeholder="z.B. 1200" type="number" onChange={(e) => setWeight(e.target.value)} className={inputClass} />
         </div>
       </div>
 
-      {/* Angelart */}
       <div className="space-y-2">
         <label className={labelClass}>Angelart</label>
         <select onChange={(e) => setMethod(e.target.value)} className={inputClass}>
@@ -303,7 +321,6 @@ export default function NewCatchPage() {
         </select>
       </div>
 
-      {/* Köder */}
       <div className="space-y-2">
         <label className={labelClass}>Köder Kategorie</label>
         <select onChange={(e) => handleBaitCategoryChange(e.target.value)} className={inputClass}>
@@ -323,7 +340,6 @@ export default function NewCatchPage() {
         </div>
       )}
 
-      {/* Status */}
       <div className="space-y-2">
         <label className={labelClass}>Status</label>
         <select onChange={(e) => setStatus(e.target.value)} className={inputClass}>
@@ -333,36 +349,19 @@ export default function NewCatchPage() {
         </select>
       </div>
 
-      {/* Stelle */}
       <div className="space-y-2">
         <label className={labelClass}>Stelle (optional)</label>
-        <input
-          placeholder="z.B. Unter der Brücke"
-          onChange={(e) => setLocationDetail(e.target.value)}
-          className={inputClass}
-        />
+        <input placeholder="z.B. Unter der Brücke" onChange={(e) => setLocationDetail(e.target.value)} className={inputClass} />
       </div>
 
-      {/* Wassertemperatur */}
       <div className="space-y-2">
         <label className={labelClass}>Wassertemperatur (°C)</label>
-        <input
-          placeholder="z.B. 14"
-          type="number"
-          onChange={(e) => setWaterTemp(e.target.value)}
-          className={inputClass}
-        />
+        <input placeholder="z.B. 14" type="number" onChange={(e) => setWaterTemp(e.target.value)} className={inputClass} />
       </div>
 
-      {/* Notizen */}
       <div className="space-y-2">
         <label className={labelClass}>Besonderheiten</label>
-        <textarea
-          placeholder="z.B. Schöner Fisch, direkt am Ufer gefangen..."
-          onChange={(e) => setNotes(e.target.value)}
-          rows={3}
-          className={inputClass}
-        />
+        <textarea placeholder="z.B. Schöner Fisch, direkt am Ufer gefangen..." onChange={(e) => setNotes(e.target.value)} rows={3} className={inputClass} />
       </div>
 
       {/* Bild */}
@@ -370,12 +369,11 @@ export default function NewCatchPage() {
         <label className={labelClass}>Foto (optional)</label>
         <label className="w-full bg-gray-800 border border-gray-700 border-dashed rounded-xl p-6 flex flex-col items-center gap-2 cursor-pointer hover:bg-gray-700 transition">
           <span className="text-3xl">📸</span>
-          <span className="text-gray-400 text-sm">Foto auswählen</span>
-          <span className="text-gray-600 text-xs">wird automatisch komprimiert</span>
+          <span className="text-gray-400 text-sm">Foto aufnehmen oder aus Galerie wählen</span>
+          <span className="text-gray-600 text-xs">wird komprimiert + Ausschnitt wählbar</span>
           <input
             type="file"
             accept="image/*"
-            capture="environment"
             onChange={handleImageChange}
             className="hidden"
           />
@@ -383,22 +381,23 @@ export default function NewCatchPage() {
 
         {imagePreview && (
           <div className="relative">
-            <img
-              src={imagePreview}
-              alt="Vorschau"
-              className="w-full rounded-xl object-cover max-h-64"
-            />
+            <img src={imagePreview} alt="Vorschau" className="w-full rounded-xl object-cover max-h-64" />
             <button
               onClick={() => { setImage(null); setImagePreview(null); }}
               className="absolute top-2 right-2 bg-red-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm"
             >
               ✕
             </button>
+            <button
+              onClick={() => { if (rawImageSrc) setShowCrop(true); }}
+              className="absolute bottom-2 right-2 bg-blue-600 text-white rounded-xl px-3 py-1 text-sm"
+            >
+              ✂️ Neu zuschneiden
+            </button>
           </div>
         )}
       </div>
 
-      {/* Speichern */}
       <button
         onClick={handleSubmit}
         disabled={saving}

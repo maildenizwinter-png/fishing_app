@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
+import * as XLSX from "xlsx";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell
@@ -40,22 +41,21 @@ export default function StatsPage() {
     setLoading(false);
   };
 
-  const exportCSV = (data: any[], filename: string) => {
+  const exportExcel = (data: any[], filename: string) => {
     if (data.length === 0) return;
-    const headers = Object.keys(data[0]).join(",");
-    const rows = data.map((row) =>
-      Object.values(row).map((val) =>
-        typeof val === "object" ? JSON.stringify(val) : val
-      ).join(",")
-    );
-    const csv = [headers, ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+
+    const cleaned = data.map((row) => {
+      const newRow: any = {};
+      Object.entries(row).forEach(([key, val]) => {
+        newRow[key] = typeof val === "object" ? JSON.stringify(val) : val;
+      });
+      return newRow;
+    });
+
+    const ws = XLSX.utils.json_to_sheet(cleaned);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Daten");
+    XLSX.writeFile(wb, filename);
   };
 
   if (loading) return <div className="p-4 text-gray-400">Laden...</div>;
@@ -154,7 +154,7 @@ export default function StatsPage() {
     .sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
     .map(([name, count]) => ({ name, count }));
 
-  // 📈 Steigender / fallender Luftdruck bei Fängen
+  // 📈 Luftdrucktrend bei Fängen
   const trendCounts = { steigend: 0, fallend: 0, gleichbleibend: 0 };
 
   catches.forEach((c) => {
@@ -162,7 +162,6 @@ export default function StatsPage() {
 
     const catchTime = new Date(c.created_at.replace(" ", "T")).getTime();
 
-    // Alle Logs dieser Session vor dem Fangzeitpunkt
     const sessionLogs = logs
       .filter((l) =>
         l.session_id === c.session_id &&
@@ -171,22 +170,16 @@ export default function StatsPage() {
       )
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
-    // Session-Start Druck als erster Wert
     const sessionStart = sessions.find((s) => s.id === c.session_id);
     const allPressures: number[] = [];
 
     if (sessionStart?.pressure) allPressures.push(sessionStart.pressure);
     sessionLogs.forEach((l) => allPressures.push(l.pressure));
 
-    // Letzten 3 Werte nehmen
     const last3 = allPressures.slice(-3);
-
     if (last3.length < 2) return;
 
-    const first = last3[0];
-    const last = last3[last3.length - 1];
-    const diff = last - first;
-
+    const diff = last3[last3.length - 1] - last3[0];
     if (diff > 0.5) trendCounts.steigend++;
     else if (diff < -0.5) trendCounts.fallend++;
     else trendCounts.gleichbleibend++;
@@ -206,16 +199,16 @@ export default function StatsPage() {
         <p className="text-gray-400 text-sm">{catches.length} Fänge gesamt</p>
       </div>
 
-      {/* CSV Export */}
+      {/* Excel Export */}
       <div className="flex gap-3">
         <button
-          onClick={() => exportCSV(catches, "faenge.csv")}
+          onClick={() => exportExcel(catches, "faenge.xlsx")}
           className="flex-1 bg-gray-800 hover:bg-gray-700 text-white py-3 rounded-xl text-sm transition"
         >
           📥 Fänge exportieren
         </button>
         <button
-          onClick={() => exportCSV(sessions, "sessions.csv")}
+          onClick={() => exportExcel(sessions, "sessions.xlsx")}
           className="flex-1 bg-gray-800 hover:bg-gray-700 text-white py-3 rounded-xl text-sm transition"
         >
           📥 Sessions exportieren
@@ -325,7 +318,7 @@ export default function StatsPage() {
         )}
       </div>
 
-      {/* Luftdruck Trend bei Fängen */}
+      {/* Luftdrucktrend */}
       <div className="bg-gray-800 rounded-2xl p-4 space-y-3">
         <h2 className="text-white font-bold">📈 Luftdrucktrend bei Fängen</h2>
         <p className="text-gray-500 text-xs">Basierend auf den letzten 3 Messwerten vor dem Fang</p>
