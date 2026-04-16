@@ -16,6 +16,39 @@ export default function Home() {
     loadData();
   }, []);
 
+  const logWeather = async (sessionId: number) => {
+    if (!navigator.geolocation) return;
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+
+          const res = await fetch(
+            `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${process.env.NEXT_PUBLIC_WEATHER_API_KEY}&units=metric`
+          );
+          const data = await res.json();
+
+          await supabase.from("session_logs").insert([{
+            session_id: sessionId,
+            created_at: new Date().toISOString(),
+            latitude: lat,
+            longitude: lon,
+            temperature: data.main?.temp ?? null,
+            pressure: data.main?.pressure ?? null,
+            weather: data.weather?.[0]?.main ?? null,
+          }]);
+
+          console.log("🌦️ Wetter-Log gespeichert");
+        } catch {
+          console.log("Wetter-Log fehlgeschlagen");
+        }
+      },
+      () => console.log("GPS nicht verfügbar")
+    );
+  };
+
   const loadData = async () => {
     const { data: sessions } = await supabase.from("sessions").select("*");
     if (!sessions) return;
@@ -23,58 +56,39 @@ export default function Home() {
     const sessionsThisYear = sessions.filter((s: any) =>
       s.start_time?.startsWith(currentYear.toString())
     );
-
     setSessionCount(sessionsThisYear.length);
 
     let totalMinutes = 0;
-
     sessionsThisYear.forEach((s: any) => {
       if (!s.start_time) return;
-
       const start = new Date(s.start_time).getTime();
-      const end = s.end_time
-        ? new Date(s.end_time).getTime()
-        : Date.now();
-
+      const end = s.end_time ? new Date(s.end_time).getTime() : Date.now();
       let diffMinutes = Math.floor((end - start) / (1000 * 60));
-
-      if (diffMinutes > 0 && diffMinutes < 24 * 60) {
-        totalMinutes += diffMinutes;
-      }
+      if (diffMinutes > 0 && diffMinutes < 24 * 60) totalMinutes += diffMinutes;
     });
 
-    const h = Math.floor(totalMinutes / 60);
-    const m = totalMinutes % 60;
-
-    setTotalTime(`${h}h ${m}min`);
+    setTotalTime(`${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}min`);
 
     const { data: catches } = await supabase.from("catches").select("*");
-
     if (catches) {
-      const catchesThisYear = catches.filter((c: any) =>
+      setFishCount(catches.filter((c: any) =>
         c.created_at?.slice(0, 4) === currentYear.toString()
-      );
-      setFishCount(catchesThisYear.length);
+      ).length);
     }
 
     const storedId = localStorage.getItem("activeSessionId");
-
     if (storedId) {
       const { data } = await supabase
-        .from("sessions")
-        .select("*")
-        .eq("id", storedId)
-        .single();
-
+        .from("sessions").select("*").eq("id", storedId).single();
       setActiveSession(data);
 
-      const { data: catches } = await supabase
-        .from("catches")
-        .select("*")
-        .eq("session_id", storedId)
+      const { data: sc } = await supabase
+        .from("catches").select("*").eq("session_id", storedId)
         .order("created_at", { ascending: false });
+      setSessionCatches(sc || []);
 
-      setSessionCatches(catches || []);
+      // 🌦️ Wetter beim App-Laden loggen
+      logWeather(Number(storedId));
     } else {
       setActiveSession(null);
     }
@@ -82,152 +96,128 @@ export default function Home() {
 
   const endSession = async () => {
     if (!activeSession) return;
-
-    const confirmEnd = confirm("Session wirklich beenden?");
-    if (!confirmEnd) return;
-
-    await supabase
-      .from("sessions")
+    if (!confirm("Session wirklich beenden?")) return;
+    await supabase.from("sessions")
       .update({ end_time: new Date().toISOString() })
       .eq("id", activeSession.id);
-
     localStorage.removeItem("activeSessionId");
     setActiveSession(null);
+    loadData();
   };
 
-  const formatSessionTime = (date: string) => {
-    const utcDate = new Date(date + "Z");
-
-    return utcDate.toLocaleTimeString("de-DE", {
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: "Europe/Berlin",
+  const formatTime = (date: string) => {
+    return new Date(date + "Z").toLocaleTimeString("de-DE", {
+      hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin",
     });
   };
 
   const formatCatchTime = (date: string) => {
     if (!date) return "-";
-
-    try {
-      const iso = date.replace(" ", "T");
-      const d = new Date(iso);
-
-      if (isNaN(d.getTime())) return "-";
-
-      return d.toLocaleTimeString("de-DE", {
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone: "Europe/Berlin",
-      });
-    } catch {
-      return "-";
-    }
+    return new Date(date.replace(" ", "T")).toLocaleTimeString("de-DE", {
+      hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin",
+    });
   };
 
   const getDuration = (start: string) => {
-    const diff = Date.now() - new Date(start).getTime();
-
-    let totalMin = Math.floor(diff / (1000 * 60));
-    totalMin = totalMin - 120;
-
-    if (totalMin < 0) totalMin = 0;
-
-    const h = Math.floor(totalMin / 60);
-    const m = totalMin % 60;
-
-    return `${h}h ${m}min`;
+    let min = Math.floor((Date.now() - new Date(start).getTime()) / 60000) - 120;
+    if (min < 0) min = 0;
+    return `${Math.floor(min / 60)}h ${min % 60}min`;
   };
 
   return (
-    <main className="p-6 max-w-xl mx-auto space-y-6">
+    <div className="p-4 max-w-xl mx-auto space-y-6">
 
-      {/* Navigation */}
-      <div className="flex gap-2">
-        <Link href="/" className="flex-1 bg-gray-200 p-2 text-center rounded">
-          Dashboard
-        </Link>
-
-        <Link href="/sessions" className="flex-1 bg-gray-200 p-2 text-center rounded">
-          Sessions
-        </Link>
-
-        <Link href="/catches" className="flex-1 bg-gray-200 p-2 text-center rounded">
-          Fische
-        </Link>
+      {/* HEADER */}
+      <div className="pt-4">
+        <p className="text-gray-400 text-sm">Willkommen zurück 👋</p>
+        <h1 className="text-2xl font-bold text-white">Dashboard {currentYear}</h1>
       </div>
 
-      <h1 className="text-3xl font-bold">
-        Mein Dashboard {currentYear}
-      </h1>
-
-      {/* Stats */}
-      <div>
-        <Link href="/catches" className="block mb-3">
-          <div className="bg-blue-500 text-white p-4 rounded-xl flex justify-between cursor-pointer hover:opacity-90">
-            <span>🐟 Fische</span>
-            <span>{fishCount}</span>
+      {/* STATS */}
+      <div className="grid grid-cols-3 gap-3">
+        <Link href="/catches">
+          <div className="bg-gray-800 rounded-2xl p-4 flex flex-col items-center gap-1 hover:bg-gray-700 transition">
+            <span className="text-2xl">🐟</span>
+            <span className="text-xl font-bold text-white">{fishCount}</span>
+            <span className="text-xs text-gray-400">Fische</span>
           </div>
         </Link>
 
-        <Link href="/sessions" className="block mb-3">
-          <div className="bg-green-500 text-white p-4 rounded-xl flex justify-between cursor-pointer hover:opacity-90">
-            <span>🎣 Sessions</span>
-            <span>{sessionCount}</span>
+        <Link href="/sessions">
+          <div className="bg-gray-800 rounded-2xl p-4 flex flex-col items-center gap-1 hover:bg-gray-700 transition">
+            <span className="text-2xl">🎣</span>
+            <span className="text-xl font-bold text-white">{sessionCount}</span>
+            <span className="text-xs text-gray-400">Sessions</span>
           </div>
         </Link>
 
-        <div className="bg-orange-500 text-white p-4 rounded-xl flex justify-between">
-          <span>⏱️ Zeit am Wasser</span>
-          <span>{totalTime}</span>
+        <div className="bg-gray-800 rounded-2xl p-4 flex flex-col items-center gap-1">
+          <span className="text-2xl">⏱️</span>
+          <span className="text-xl font-bold text-white">{totalTime}</span>
+          <span className="text-xs text-gray-400">Zeit</span>
         </div>
       </div>
 
-      {/* Session */}
+      {/* AKTIVE SESSION oder START BUTTON */}
       {!activeSession ? (
         <Link href="/session">
-          <button className="bg-green-500 text-white p-3 w-full rounded-xl">
-            ▶️ Neue Session starten
-          </button>
+          <div className="bg-blue-600 hover:bg-blue-500 transition rounded-2xl p-5 flex items-center justify-between shadow-lg">
+            <div>
+              <p className="text-white font-bold text-lg">Neue Session</p>
+              <p className="text-blue-200 text-sm">Angelzeit starten</p>
+            </div>
+            <span className="text-3xl">▶️</span>
+          </div>
         </Link>
       ) : (
-        <div className="border p-4 rounded space-y-3 bg-green-100">
+        <div className="bg-gray-800 rounded-2xl p-4 space-y-4 border border-red-500/30">
 
-          <h2 className="font-bold">🔴 Laufende Session</h2>
-
-          <p>🎣 <strong>{activeSession.location}</strong></p>
-          <p>🕒 Start: {formatSessionTime(activeSession.start_time)}</p>
-          <p>⏱️ Dauer: {getDuration(activeSession.start_time)}</p>
-
-          <div className="space-y-2">
-            <h3 className="font-bold">Fänge</h3>
-
-            {sessionCatches.length === 0 && <p>Keine Fänge</p>}
-
-            {sessionCatches.map((c: any) => (
-              <div key={c.id} className="bg-white p-2 rounded border">
-                <p><strong>{c.fish || "-"}</strong></p>
-                <p>
-                  {c.length_cm ? `${c.length_cm} cm` : "-"} • {c.status || "-"}
-                </p>
-                <p>{formatCatchTime(c.created_at)}</p>
-              </div>
-            ))}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+              <span className="text-red-400 font-semibold text-sm">Laufende Session</span>
+            </div>
+            <span className="text-gray-400 text-sm">{getDuration(activeSession.start_time)}</span>
           </div>
 
-          <Link href="/new">
-            <button className="bg-blue-500 text-white p-2 w-full rounded">
-              ➕ Fang hinzufügen
-            </button>
-          </Link>
+          <div>
+            <p className="text-white font-bold">🎣 {activeSession.location}</p>
+            <p className="text-gray-400 text-sm">🕒 Start: {formatTime(activeSession.start_time)}</p>
+          </div>
 
-          <button
-            onClick={endSession}
-            className="bg-red-500 text-white p-2 w-full rounded"
-          >
-            ⏹️ Session beenden
-          </button>
+          {/* Fänge */}
+          <div className="space-y-2">
+            <p className="text-gray-400 text-xs uppercase tracking-wider">Fänge dieser Session</p>
+            {sessionCatches.length === 0 ? (
+              <p className="text-gray-500 text-sm">Noch keine Fänge</p>
+            ) : (
+              sessionCatches.map((c: any) => (
+                <div key={c.id} className="bg-gray-700 rounded-xl p-3 flex justify-between items-center">
+                  <div>
+                    <p className="text-white font-semibold">{c.fish}</p>
+                    <p className="text-gray-400 text-xs">{c.length_cm ? `${c.length_cm} cm` : ""} • {c.status}</p>
+                  </div>
+                  <p className="text-gray-500 text-xs">{formatCatchTime(c.created_at)}</p>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="flex gap-2">
+            <Link href="/new" className="flex-1">
+              <button className="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-xl text-sm transition">
+                ➕ Fang hinzufügen
+              </button>
+            </Link>
+            <button
+              onClick={endSession}
+              className="flex-1 bg-red-600 hover:bg-red-500 text-white py-2 rounded-xl text-sm transition"
+            >
+              ⏹️ Beenden
+            </button>
+          </div>
         </div>
       )}
-    </main>
+    </div>
   );
 }

@@ -7,153 +7,218 @@ export default function SessionPage() {
   const [location, setLocation] = useState("");
   const [companion, setCompanion] = useState("");
   const [sessionId, setSessionId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<"now" | "manual">("now");
+
+  // Manuelle Zeiten
+  const [manualStart, setManualStart] = useState("");
+  const [manualEnd, setManualEnd] = useState("");
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const router = useRouter();
 
-  // 🌦️ + 📍 Daten holen
   const getEnvironmentData = async () => {
     return new Promise<any>((resolve) => {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
-          const lat = position.coords.latitude;
-          const lon = position.coords.longitude;
-
-          const weatherRes = await fetch(
-            `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=af76d967f85380285cd5ea5d683a75a0&units=metric`
-          );
-
-          const weatherData = await weatherRes.json();
-
-          resolve({
-            latitude: lat,
-            longitude: lon,
-            temperature: weatherData.main?.temp,
-            pressure: weatherData.main?.pressure,
-            weather: weatherData.weather?.[0]?.main,
-          });
+          try {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            const res = await fetch(
+              `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${process.env.NEXT_PUBLIC_WEATHER_API_KEY}&units=metric`
+            );
+            const weatherData = await res.json();
+            resolve({
+              latitude: lat,
+              longitude: lon,
+              temperature: weatherData.main?.temp,
+              pressure: weatherData.main?.pressure,
+              weather: weatherData.weather?.[0]?.main,
+            });
+          } catch {
+            resolve({});
+          }
         },
-        () => {
-          // 👉 Fallback wenn Standort nicht erlaubt
-          resolve({});
-        }
+        () => resolve({})
       );
     });
   };
 
   const startSession = async () => {
-    const env = await getEnvironmentData();
+    if (!location) {
+      alert("Bitte ein Gewässer wählen!");
+      return;
+    }
+
+    if (mode === "manual" && !manualStart) {
+      alert("Bitte Startzeit angeben!");
+      return;
+    }
+
+    setLoading(true);
+
+    const env = mode === "now" ? await getEnvironmentData() : {};
+
+    const startTime = mode === "manual"
+      ? new Date(manualStart).toISOString()
+      : new Date().toISOString();
+
+    const endTime = mode === "manual" && manualEnd
+      ? new Date(manualEnd).toISOString()
+      : null;
 
     const { data, error } = await supabase
       .from("sessions")
-      .insert([
-        {
-          // ✅ RICHTIG: UTC speichern
-          start_time: new Date().toISOString(),
-          end_time: null,
-          location,
-          companion,
-          ...env,
-        },
-      ])
+      .insert([{
+        start_time: startTime,
+        end_time: endTime,
+        location,
+        companion,
+        ...env,
+      }])
       .select()
       .single();
 
     if (error) {
       alert("Fehler beim Start: " + error.message);
+      setLoading(false);
       return;
     }
 
-    setSessionId(data.id);
+    // Bei manueller Erfassung keine aktive Session setzen
+    if (mode === "now") {
+      setSessionId(data.id);
+      localStorage.setItem("activeSessionId", data.id.toString());
 
-    // ✅ aktive Session speichern
-    localStorage.setItem("activeSessionId", data.id.toString());
-
-    // 🔁 AUTO TRACKING
-    intervalRef.current = setInterval(async () => {
-      const env = await getEnvironmentData();
-
-      await supabase.from("session_logs").insert([
-        {
+      intervalRef.current = setInterval(async () => {
+        const env = await getEnvironmentData();
+        await supabase.from("session_logs").insert([{
           session_id: data.id,
           created_at: new Date().toISOString(),
           ...env,
-        },
-      ]);
+        }]);
+      }, 30000);
+    } else {
+      // Manuelle Session → keine aktive Session setzen
+    }
 
-      console.log("Auto-Log gespeichert");
-    }, 30000);
-
-    // ✅ DIREKT ZUR STARTSEITE
+    setLoading(false);
     router.push("/");
   };
 
-  const endSession = async () => {
-    if (!sessionId) {
-      alert("Keine aktive Session!");
-      return;
-    }
-
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-
-    const { error } = await supabase
-      .from("sessions")
-      .update({
-        end_time: new Date().toISOString(),
-      })
-      .eq("id", sessionId);
-
-    if (error) {
-      alert("Fehler beim Beenden: " + error.message);
-    } else {
-      alert("Angelzeit beendet ✅");
-      setSessionId(null);
-      localStorage.removeItem("activeSessionId");
-
-      // 👉 optional zurück zur Startseite
-      router.push("/");
-    }
-  };
+  const inputClass = "w-full bg-gray-800 text-white border border-gray-700 rounded-xl p-3 placeholder-gray-600";
+  const labelClass = "text-gray-400 text-sm";
 
   return (
-    <main className="p-6 max-w-xl mx-auto space-y-4">
-      <h1 className="text-2xl font-bold">🎣 Angelzeit</h1>
+    <div className="p-4 max-w-xl mx-auto space-y-6">
 
-      <select
-        value={location}
-        onChange={(e) => setLocation(e.target.value)}
-        className="w-full border p-2"
-      >
-        <option value="">Gewässer wählen</option>
-        <option>Obere Argen</option>
-        <option>Doppelargen</option>
-        <option>Weiher Neuravensburg</option>
-      </select>
+      <div className="pt-4">
+        <h1 className="text-2xl font-bold text-white">🎣 Neue Session</h1>
+        <p className="text-gray-400 text-sm">Angelzeit erfassen</p>
+      </div>
 
-      <input
-        value={companion}
-        placeholder="Begleiter"
-        onChange={(e) => setCompanion(e.target.value)}
-        className="w-full border p-2"
-      />
-
-      {!sessionId ? (
+      {/* Modus Schalter */}
+      <div className="grid grid-cols-2 gap-2">
         <button
-          onClick={startSession}
-          className="bg-green-500 text-white p-3 w-full rounded"
+          onClick={() => setMode("now")}
+          className={`py-3 rounded-xl font-semibold transition ${
+            mode === "now"
+              ? "bg-green-600 text-white"
+              : "bg-gray-800 text-gray-400"
+          }`}
         >
-          ▶️ Start
+          ▶️ Jetzt starten
         </button>
-      ) : (
         <button
-          onClick={endSession}
-          className="bg-red-500 text-white p-3 w-full rounded"
+          onClick={() => setMode("manual")}
+          className={`py-3 rounded-xl font-semibold transition ${
+            mode === "manual"
+              ? "bg-blue-600 text-white"
+              : "bg-gray-800 text-gray-400"
+          }`}
         >
-          ⏹️ Stop
+          📅 Nachtragen
         </button>
+      </div>
+
+      {/* Gewässer */}
+      <div className="space-y-2">
+        <label className={labelClass}>Gewässer</label>
+        <input
+  list="gewässer-list"
+  value={location}
+  onChange={(e) => setLocation(e.target.value)}
+  placeholder="Gewässer wählen oder eingeben"
+  className={inputClass}
+/>
+<datalist id="gewässer-list">
+  <option value="Obere Argen" />
+  <option value="Doppelargen" />
+  <option value="Weiher Neuravensburg" />
+</datalist>
+      </div>
+
+      {/* Begleiter */}
+      <div className="space-y-2">
+        <label className={labelClass}>Begleiter (optional)</label>
+        <input
+          value={companion}
+          placeholder="z.B. R2-D2 & C-3PO"
+          onChange={(e) => setCompanion(e.target.value)}
+          className={inputClass}
+        />
+      </div>
+
+      {/* Manuelle Zeiten */}
+      {mode === "manual" && (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className={labelClass}>Startzeit</label>
+            <input
+              type="datetime-local"
+              value={manualStart}
+              onChange={(e) => setManualStart(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className={labelClass}>Endzeit (optional)</label>
+            <input
+              type="datetime-local"
+              value={manualEnd}
+              onChange={(e) => setManualEnd(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+        </div>
       )}
-    </main>
+
+      {/* Info */}
+      {mode === "now" && (
+        <div className="bg-gray-800 rounded-2xl p-4 space-y-2 text-sm text-gray-400">
+          <p>📍 GPS wird automatisch erfasst</p>
+          <p>🌦️ Wetter wird automatisch geladen</p>
+          <p>🔁 Tracking alle 30 Sekunden</p>
+        </div>
+      )}
+
+      {mode === "manual" && (
+        <div className="bg-gray-800 rounded-2xl p-4 space-y-2 text-sm text-gray-400">
+          <p>📅 Session wird nachträglich erfasst</p>
+          <p>🐟 Fänge kannst du danach eintragen</p>
+          <p>🌦️ Kein automatisches Wetter-Tracking</p>
+        </div>
+      )}
+
+      {/* Start Button */}
+      <button
+        onClick={startSession}
+        disabled={loading}
+        className="w-full bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-bold py-4 rounded-2xl text-lg transition"
+      >
+        {loading ? "⏳ Wird gespeichert..." : mode === "now" ? "▶️ Session starten" : "💾 Session speichern"}
+      </button>
+
+    </div>
   );
 }
