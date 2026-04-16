@@ -19,6 +19,11 @@ export default function CatchesPage() {
 
   const [galleryImage, setGalleryImage] = useState<string | null>(null);
 
+  // Filter States
+  const [filterLocation, setFilterLocation] = useState("");
+  const [filterMonth, setFilterMonth] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+
   const load = async () => {
     const { data } = await supabase
       .from("catches")
@@ -101,6 +106,35 @@ export default function CatchesPage() {
     return null;
   };
 
+  // Unique Gewässer für Filter
+  const uniqueLocations = Array.from(
+    new Set(catches.map((c) => c.sessions?.location).filter(Boolean))
+  );
+
+  // Unique Monate für Filter
+  const uniqueMonths = Array.from(
+    new Set(catches.map((c) => {
+      if (!c.created_at) return null;
+      const d = new Date(c.created_at.replace(" ", "T"));
+      return `${d.getMonth() + 1}/${d.getFullYear()}`;
+    }).filter(Boolean))
+  );
+
+  // Gefilterte Fänge
+  const filtered = catches.filter((c) => {
+    if (filterLocation && c.sessions?.location !== filterLocation) return false;
+    if (filterStatus && c.status !== filterStatus) return false;
+    if (filterMonth) {
+      if (!c.created_at) return false;
+      const d = new Date(c.created_at.replace(" ", "T"));
+      const month = `${d.getMonth() + 1}/${d.getFullYear()}`;
+      if (month !== filterMonth) return false;
+    }
+    return true;
+  });
+
+  const inputClass = "bg-gray-700 text-white border border-gray-600 rounded-xl p-2 text-sm";
+
   return (
     <div className="p-4 max-w-xl mx-auto space-y-4">
 
@@ -126,10 +160,66 @@ export default function CatchesPage() {
 
       <div className="pt-4">
         <h1 className="text-2xl font-bold text-white">🐟 Alle Fänge</h1>
-        <p className="text-gray-400 text-sm">{catches.length} Fänge gesamt</p>
+        <p className="text-gray-400 text-sm">{filtered.length} von {catches.length} Fängen</p>
       </div>
 
-      {catches.map((c: any) => (
+      {/* FILTER */}
+      <div className="bg-gray-800 rounded-2xl p-4 space-y-3">
+        <p className="text-gray-400 text-xs uppercase tracking-wider">Filter</p>
+
+        <div className="grid grid-cols-2 gap-2">
+          {/* Gewässer */}
+          <select
+            value={filterLocation}
+            onChange={(e) => setFilterLocation(e.target.value)}
+            className={inputClass + " w-full"}
+          >
+            <option value="">Alle Gewässer</option>
+            {uniqueLocations.map((loc) => (
+              <option key={loc} value={loc}>{loc}</option>
+            ))}
+          </select>
+
+          {/* Status */}
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className={inputClass + " w-full"}
+          >
+            <option value="">Alle Status</option>
+            <option>Entnommen</option>
+            <option>Zurückgesetzt</option>
+          </select>
+        </div>
+
+        {/* Monat */}
+        <select
+          value={filterMonth}
+          onChange={(e) => setFilterMonth(e.target.value)}
+          className={inputClass + " w-full"}
+        >
+          <option value="">Alle Monate</option>
+          {uniqueMonths.map((m) => (
+            <option key={m} value={m!}>{m}</option>
+          ))}
+        </select>
+
+        {/* Filter zurücksetzen */}
+        {(filterLocation || filterStatus || filterMonth) && (
+          <button
+            onClick={() => { setFilterLocation(""); setFilterStatus(""); setFilterMonth(""); }}
+            className="text-red-400 text-sm hover:text-red-300 transition"
+          >
+            ✕ Filter zurücksetzen
+          </button>
+        )}
+      </div>
+
+      {filtered.length === 0 && (
+        <p className="text-gray-500 text-sm">Keine Fänge für diesen Filter.</p>
+      )}
+
+      {filtered.map((c: any) => (
         <div key={c.id} className="bg-gray-800 rounded-2xl overflow-hidden">
 
           {c.image_url && (
