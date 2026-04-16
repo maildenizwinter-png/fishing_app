@@ -1,9 +1,7 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
-import ReactCrop, { type Crop } from "react-image-crop";
-import "react-image-crop/dist/ReactCrop.css";
 
 export default function NewCatchPage() {
   const router = useRouter();
@@ -33,12 +31,6 @@ export default function NewCatchPage() {
 
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-
-  // Crop States
-  const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
-  const [crop, setCrop] = useState<Crop>({ unit: "%", x: 10, y: 10, width: 80, height: 80 });
-  const [showCrop, setShowCrop] = useState(false);
-  const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
     const storedId = localStorage.getItem("activeSessionId");
@@ -83,43 +75,32 @@ export default function NewCatchPage() {
     }
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    setRawImageSrc(url);
-    setShowCrop(true);
+  const compressImage = (file: File): Promise<Blob> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.src = url;
+      img.onload = () => {
+        const maxWidth = 1200;
+        const scale = Math.min(1, maxWidth / img.width);
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url);
+        canvas.toBlob((blob) => resolve(blob!), "image/jpeg", 0.75);
+      };
+    });
   };
 
-  const applyCrop = async () => {
-    if (!imgRef.current || !rawImageSrc) return;
-
-    const img = imgRef.current;
-    const scaleX = img.naturalWidth / img.width;
-    const scaleY = img.naturalHeight / img.height;
-
-    const canvas = document.createElement("canvas");
-    const cropX = (crop.x / 100) * img.width * scaleX;
-    const cropY = (crop.y / 100) * img.height * scaleY;
-    const cropW = (crop.width / 100) * img.width * scaleX;
-    const cropH = (crop.height / 100) * img.height * scaleY;
-
-    const maxWidth = 1200;
-    const scale = Math.min(1, maxWidth / cropW);
-    canvas.width = cropW * scale;
-    canvas.height = cropH * scale;
-
-    const ctx = canvas.getContext("2d");
-    ctx?.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
-
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const file = new File([blob], "crop.jpg", { type: "image/jpeg" });
-      setImage(file);
-      setImagePreview(URL.createObjectURL(blob));
-      setShowCrop(false);
-      setRawImageSrc(null);
-    }, "image/jpeg", 0.75);
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const compressed = await compressImage(file);
+    const compressedFile = new File([compressed], file.name, { type: "image/jpeg" });
+    setImage(compressedFile);
+    setImagePreview(URL.createObjectURL(compressed));
   };
 
   const getWeatherData = async () => {
@@ -205,39 +186,6 @@ export default function NewCatchPage() {
 
   return (
     <div className="p-4 max-w-xl mx-auto space-y-5">
-
-      {/* CROP MODAL */}
-      {showCrop && rawImageSrc && (
-        <div className="fixed inset-0 bg-black/95 z-50 flex flex-col items-center justify-center p-4 gap-4">
-          <p className="text-white font-bold text-lg">Bildausschnitt wählen</p>
-          <ReactCrop
-            crop={crop}
-            onChange={(c) => setCrop(c)}
-            className="max-h-[70vh]"
-          >
-            <img
-              ref={imgRef}
-              src={rawImageSrc}
-              alt="Crop"
-              className="max-h-[70vh] object-contain"
-            />
-          </ReactCrop>
-          <div className="flex gap-3 w-full">
-            <button
-              onClick={() => { setShowCrop(false); setRawImageSrc(null); }}
-              className="flex-1 bg-gray-700 text-white py-3 rounded-xl"
-            >
-              Abbrechen
-            </button>
-            <button
-              onClick={applyCrop}
-              className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold"
-            >
-              ✂️ Ausschnitt verwenden
-            </button>
-          </div>
-        </div>
-      )}
 
       <div className="pt-4">
         <h1 className="text-2xl font-bold text-white">🐟 Neuer Fang</h1>
@@ -370,7 +318,7 @@ export default function NewCatchPage() {
         <label className="w-full bg-gray-800 border border-gray-700 border-dashed rounded-xl p-6 flex flex-col items-center gap-2 cursor-pointer hover:bg-gray-700 transition">
           <span className="text-3xl">📸</span>
           <span className="text-gray-400 text-sm">Foto aufnehmen oder aus Galerie wählen</span>
-          <span className="text-gray-600 text-xs">wird komprimiert + Ausschnitt wählbar</span>
+          <span className="text-gray-600 text-xs">wird automatisch komprimiert</span>
           <input
             type="file"
             accept="image/*"
@@ -387,12 +335,6 @@ export default function NewCatchPage() {
               className="absolute top-2 right-2 bg-red-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm"
             >
               ✕
-            </button>
-            <button
-              onClick={() => { if (rawImageSrc) setShowCrop(true); }}
-              className="absolute bottom-2 right-2 bg-blue-600 text-white rounded-xl px-3 py-1 text-sm"
-            >
-              ✂️ Neu zuschneiden
             </button>
           </div>
         )}
