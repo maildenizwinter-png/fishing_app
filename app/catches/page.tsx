@@ -23,6 +23,7 @@ export default function CatchesPage() {
   const [filterLocation, setFilterLocation] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterFish, setFilterFish] = useState("");
 
   const load = async () => {
     const { data } = await supabase
@@ -106,12 +107,10 @@ export default function CatchesPage() {
     return null;
   };
 
-  // Unique Gewässer für Filter
+  // Unique Werte für Filter
   const uniqueLocations = Array.from(
     new Set(catches.map((c) => c.sessions?.location).filter(Boolean))
   );
-
-  // Unique Monate für Filter
   const uniqueMonths = Array.from(
     new Set(catches.map((c) => {
       if (!c.created_at) return null;
@@ -119,11 +118,15 @@ export default function CatchesPage() {
       return `${d.getMonth() + 1}/${d.getFullYear()}`;
     }).filter(Boolean))
   );
+  const uniqueFish = Array.from(
+    new Set(catches.map((c) => c.fish).filter(Boolean))
+  );
 
   // Gefilterte Fänge
   const filtered = catches.filter((c) => {
     if (filterLocation && c.sessions?.location !== filterLocation) return false;
     if (filterStatus && c.status !== filterStatus) return false;
+    if (filterFish && c.fish !== filterFish) return false;
     if (filterMonth) {
       if (!c.created_at) return false;
       const d = new Date(c.created_at.replace(" ", "T"));
@@ -168,7 +171,6 @@ export default function CatchesPage() {
         <p className="text-gray-400 text-xs uppercase tracking-wider">Filter</p>
 
         <div className="grid grid-cols-2 gap-2">
-          {/* Gewässer */}
           <select
             value={filterLocation}
             onChange={(e) => setFilterLocation(e.target.value)}
@@ -180,7 +182,6 @@ export default function CatchesPage() {
             ))}
           </select>
 
-          {/* Status */}
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
@@ -192,22 +193,33 @@ export default function CatchesPage() {
           </select>
         </div>
 
-        {/* Monat */}
-        <select
-          value={filterMonth}
-          onChange={(e) => setFilterMonth(e.target.value)}
-          className={inputClass + " w-full"}
-        >
-          <option value="">Alle Monate</option>
-          {uniqueMonths.map((m) => (
-            <option key={m} value={m!}>{m}</option>
-          ))}
-        </select>
+        <div className="grid grid-cols-2 gap-2">
+          <select
+            value={filterFish}
+            onChange={(e) => setFilterFish(e.target.value)}
+            className={inputClass + " w-full"}
+          >
+            <option value="">Alle Fischarten</option>
+            {uniqueFish.map((f) => (
+              <option key={f} value={f}>{f}</option>
+            ))}
+          </select>
 
-        {/* Filter zurücksetzen */}
-        {(filterLocation || filterStatus || filterMonth) && (
+          <select
+            value={filterMonth}
+            onChange={(e) => setFilterMonth(e.target.value)}
+            className={inputClass + " w-full"}
+          >
+            <option value="">Alle Monate</option>
+            {uniqueMonths.map((m) => (
+              <option key={m} value={m!}>{m}</option>
+            ))}
+          </select>
+        </div>
+
+        {(filterLocation || filterStatus || filterMonth || filterFish) && (
           <button
-            onClick={() => { setFilterLocation(""); setFilterStatus(""); setFilterMonth(""); }}
+            onClick={() => { setFilterLocation(""); setFilterStatus(""); setFilterMonth(""); setFilterFish(""); }}
             className="text-red-400 text-sm hover:text-red-300 transition"
           >
             ✕ Filter zurücksetzen
