@@ -38,7 +38,7 @@ export default function Home() {
           const data = await res.json();
           console.log("Wetterdaten:", data);
 
-          const { error } = await supabase.from("session_logs").insert([{
+          const { data: insertData, error } = await supabase.from("session_logs").insert([{
             session_id: sessionId,
             created_at: new Date().toISOString(),
             latitude: lat,
@@ -46,12 +46,12 @@ export default function Home() {
             temperature: data.main?.temp ?? null,
             pressure: data.main?.pressure ?? null,
             weather: data.weather?.[0]?.main ?? null,
-          }]);
+          }]).select();
 
           if (error) {
-            console.log("Supabase Fehler:", error.message);
+            console.log("Supabase Fehler:", JSON.stringify(error));
           } else {
-            console.log("🌦️ Wetter-Log gespeichert");
+            console.log("🌦️ Wetter-Log gespeichert:", JSON.stringify(insertData));
           }
         } catch (e) {
           console.log("Wetter-Log fehlgeschlagen:", e);
