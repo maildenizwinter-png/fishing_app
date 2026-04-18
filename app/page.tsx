@@ -18,20 +18,27 @@ export default function Home() {
   }, []);
 
   const logWeather = async (sessionId: number) => {
-    if (!navigator.geolocation) return;
+    console.log("logWeather aufgerufen mit sessionId:", sessionId);
+
+    if (!navigator.geolocation) {
+      console.log("Kein GPS verfügbar");
+      return;
+    }
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         try {
           const lat = position.coords.latitude;
           const lon = position.coords.longitude;
+          console.log("GPS erhalten:", lat, lon);
 
           const res = await fetch(
             `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${process.env.NEXT_PUBLIC_WEATHER_API_KEY}&units=metric`
           );
           const data = await res.json();
+          console.log("Wetterdaten:", data);
 
-          await supabase.from("session_logs").insert([{
+          const { error } = await supabase.from("session_logs").insert([{
             session_id: sessionId,
             created_at: new Date().toISOString(),
             latitude: lat,
@@ -40,11 +47,18 @@ export default function Home() {
             pressure: data.main?.pressure ?? null,
             weather: data.weather?.[0]?.main ?? null,
           }]);
-        } catch {
-          console.log("Wetter-Log fehlgeschlagen");
+
+          if (error) {
+            console.log("Supabase Fehler:", error.message);
+          } else {
+            console.log("🌦️ Wetter-Log gespeichert");
+          }
+        } catch (e) {
+          console.log("Wetter-Log fehlgeschlagen:", e);
         }
       },
-      () => console.log("GPS nicht verfügbar")
+      (err) => console.log("GPS nicht verfügbar:", err.message),
+      { timeout: 10000 }
     );
   };
 
@@ -81,6 +95,8 @@ export default function Home() {
     }
 
     const storedId = localStorage.getItem("activeSessionId");
+    console.log("storedId aus localStorage:", storedId);
+
     if (storedId) {
       const { data } = await supabase
         .from("sessions").select("*").eq("id", storedId).single();
@@ -93,6 +109,7 @@ export default function Home() {
 
       logWeather(Number(storedId));
     } else {
+      console.log("Keine aktive Session gefunden");
       setActiveSession(null);
     }
   };
