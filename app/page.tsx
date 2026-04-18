@@ -18,27 +18,20 @@ export default function Home() {
   }, []);
 
   const logWeather = async (sessionId: number) => {
-    console.log("logWeather aufgerufen mit sessionId:", sessionId);
-
-    if (!navigator.geolocation) {
-      console.log("Kein GPS verfügbar");
-      return;
-    }
+    if (!navigator.geolocation) return;
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         try {
           const lat = position.coords.latitude;
           const lon = position.coords.longitude;
-          console.log("GPS erhalten:", lat, lon);
 
           const res = await fetch(
             `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${process.env.NEXT_PUBLIC_WEATHER_API_KEY}&units=metric`
           );
           const data = await res.json();
-          console.log("Wetterdaten:", data);
 
-          const { data: insertData, error } = await supabase.from("session_logs").insert([{
+          await supabase.from("session_logs").insert([{
             session_id: sessionId,
             created_at: new Date().toISOString(),
             latitude: lat,
@@ -46,18 +39,12 @@ export default function Home() {
             temperature: data.main?.temp ?? null,
             pressure: data.main?.pressure ?? null,
             weather: data.weather?.[0]?.main ?? null,
-          }]).select();
-
-          if (error) {
-            console.log("Supabase Fehler:", JSON.stringify(error));
-          } else {
-            console.log("🌦️ Wetter-Log gespeichert:", JSON.stringify(insertData));
-          }
-        } catch (e) {
-          console.log("Wetter-Log fehlgeschlagen:", e);
+          }]);
+        } catch {
+          console.log("Wetter-Log fehlgeschlagen");
         }
       },
-      (err) => console.log("GPS nicht verfügbar:", err.message),
+      () => console.log("GPS nicht verfügbar"),
       { timeout: 10000 }
     );
   };
@@ -95,7 +82,6 @@ export default function Home() {
     }
 
     const storedId = localStorage.getItem("activeSessionId");
-    console.log("storedId aus localStorage:", storedId);
 
     if (storedId) {
       const { data } = await supabase
@@ -109,7 +95,6 @@ export default function Home() {
 
       logWeather(Number(storedId));
     } else {
-      console.log("Keine aktive Session gefunden");
       setActiveSession(null);
     }
   };
@@ -156,13 +141,11 @@ export default function Home() {
   return (
     <div className="p-4 max-w-xl mx-auto space-y-6">
 
-      {/* HEADER */}
       <div className="pt-4">
         <p className="text-gray-400 text-sm">Willkommen zurück 👋</p>
         <h1 className="text-2xl font-bold text-white">Dashboard {currentYear}</h1>
       </div>
 
-      {/* STATS */}
       <div className="grid grid-cols-3 gap-3">
         <Link href="/catches">
           <div className="bg-gray-800 rounded-2xl p-4 flex flex-col items-center gap-1 hover:bg-gray-700 transition">
@@ -187,7 +170,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* AKTIVE SESSION oder START BUTTON */}
       {!activeSession ? (
         <Link href="/session">
           <div className="bg-green-600 hover:bg-green-500 transition rounded-2xl p-5 flex items-center justify-between shadow-lg">
@@ -247,7 +229,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* LETZTER FANG */}
       {!activeSession && lastCatch && (
         <div className="bg-gray-800 rounded-2xl overflow-hidden">
           <div className="px-4 pt-4 pb-2">
