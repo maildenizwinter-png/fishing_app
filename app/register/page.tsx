@@ -12,29 +12,29 @@ export default function RegisterPage() {
 
   useEffect(() => {
     const checkSession = async () => {
+      // Erst prüfen ob bereits eine Session existiert
       const { data: { session } } = await supabase.auth.getSession();
-      
       if (session) {
         setReady(true);
         return;
       }
 
-      const hash = window.location.hash;
-      const params = new URLSearchParams(hash.replace("#", "?"));
-      const accessToken = params.get("access_token");
-      const refreshToken = params.get("refresh_token");
+      // token_hash aus URL Query Parametern lesen
+      const params = new URLSearchParams(window.location.search);
+      const tokenHash = params.get("token_hash");
       const type = params.get("type");
 
-      console.log("Hash:", hash);
-      console.log("Token:", accessToken);
-      console.log("Type:", type);
+      console.log("token_hash:", tokenHash);
+      console.log("type:", type);
 
-      if (accessToken) {
-        const { error } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken || "",
+      if (tokenHash && type === "invite") {
+        const { error } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: "invite",
         });
+
         if (error) {
+          console.log("OTP Fehler:", error.message);
           setError("Ungültiger Einladungslink ❌");
         } else {
           setReady(true);
@@ -73,6 +73,10 @@ export default function RegisterPage() {
           <h1 className="text-2xl font-bold text-white">Willkommen!</h1>
           <p className="text-gray-400 text-sm">Lege dein Passwort fest</p>
         </div>
+
+        {!ready && !error && (
+          <p className="text-gray-400 text-sm text-center">⏳ Link wird überprüft...</p>
+        )}
 
         {error && (
           <p className="text-red-400 text-sm text-center">{error}</p>
