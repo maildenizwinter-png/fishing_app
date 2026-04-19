@@ -11,27 +11,40 @@ export default function RegisterPage() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // Token aus URL Hash auslesen
-    const hash = window.location.hash;
-    const params = new URLSearchParams(hash.replace("#", "?"));
-    const accessToken = params.get("access_token");
-    const refreshToken = params.get("refresh_token");
-    const type = params.get("type");
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session) {
+        setReady(true);
+        return;
+      }
 
-    if (accessToken && type === "invite") {
-      supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken || "",
-      }).then(({ error }) => {
+      const hash = window.location.hash;
+      const params = new URLSearchParams(hash.replace("#", "?"));
+      const accessToken = params.get("access_token");
+      const refreshToken = params.get("refresh_token");
+      const type = params.get("type");
+
+      console.log("Hash:", hash);
+      console.log("Token:", accessToken);
+      console.log("Type:", type);
+
+      if (accessToken) {
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken || "",
+        });
         if (error) {
           setError("Ungültiger Einladungslink ❌");
         } else {
           setReady(true);
         }
-      });
-    } else {
-      setError("Ungültiger Einladungslink ❌");
-    }
+      } else {
+        setError("Ungültiger Einladungslink ❌");
+      }
+    };
+
+    checkSession();
   }, []);
 
   const handleSetPassword = async () => {
