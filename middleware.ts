@@ -6,21 +6,12 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith(path)
   )
 
-  // Supabase Session Cookie prüfen
   const hasSession = request.cookies.getAll().some(
-    cookie => cookie.name.startsWith('sb-') && cookie.name.endsWith('-auth-token')
+    cookie => cookie.name.includes('auth-token')
   )
 
   if (!hasSession && !isPublicPath) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
-  }
-
-  if (hasSession && isPublicPath) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/'
-    return NextResponse.redirect(url)
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
   return NextResponse.next()
