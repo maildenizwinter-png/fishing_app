@@ -56,6 +56,7 @@ export default function SessionPage() {
 
     setLoading(true);
 
+    const { data: { user } } = await supabase.auth.getUser();
     const env = mode === "now" ? await getEnvironmentData() : {};
 
     const startTime = mode === "manual"
@@ -73,6 +74,7 @@ export default function SessionPage() {
         end_time: endTime,
         location,
         companion,
+        user_id: user?.id,
         ...env,
       }])
       .select()
@@ -113,14 +115,11 @@ export default function SessionPage() {
         <p className="text-gray-400 text-sm">Angelzeit erfassen</p>
       </div>
 
-      {/* Modus Schalter */}
       <div className="grid grid-cols-2 gap-2">
         <button
           onClick={() => setMode("now")}
           className={`py-3 rounded-xl font-semibold transition ${
-            mode === "now"
-              ? "bg-blue-600 text-white"
-              : "bg-gray-800 text-gray-400"
+            mode === "now" ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400"
           }`}
         >
           ▶️ Jetzt starten
@@ -128,16 +127,13 @@ export default function SessionPage() {
         <button
           onClick={() => setMode("manual")}
           className={`py-3 rounded-xl font-semibold transition ${
-            mode === "manual"
-              ? "bg-blue-600 text-white"
-              : "bg-gray-800 text-gray-400"
+            mode === "manual" ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400"
           }`}
         >
           📅 Nachtragen
         </button>
       </div>
 
-      {/* Gewässer */}
       <div className="space-y-2">
         <label className={labelClass}>Gewässer</label>
         <input
@@ -154,7 +150,6 @@ export default function SessionPage() {
         </datalist>
       </div>
 
-      {/* Begleiter */}
       <div className="space-y-2">
         <label className={labelClass}>Begleiter (optional)</label>
         <input
@@ -165,7 +160,6 @@ export default function SessionPage() {
         />
       </div>
 
-      {/* Manuelle Zeiten */}
       {mode === "manual" && (
         <div className="space-y-4">
           <div className="space-y-2">
@@ -189,7 +183,6 @@ export default function SessionPage() {
         </div>
       )}
 
-      {/* Info */}
       {mode === "now" && (
         <div className="bg-gray-800 rounded-2xl p-4 space-y-2 text-sm text-gray-400">
           <p>📍 GPS wird automatisch erfasst</p>
@@ -206,7 +199,6 @@ export default function SessionPage() {
         </div>
       )}
 
-      {/* Start Button */}
       <button
         onClick={startSession}
         disabled={loading}

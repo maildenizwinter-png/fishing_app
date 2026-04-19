@@ -10,6 +10,7 @@ export default function Home() {
   const [activeSession, setActiveSession] = useState<any>(null);
   const [sessionCatches, setSessionCatches] = useState<any[]>([]);
   const [lastCatch, setLastCatch] = useState<any>(null);
+  const [userName, setUserName] = useState("");
 
   const currentYear = new Date().getFullYear();
 
@@ -50,7 +51,29 @@ export default function Home() {
   };
 
   const loadData = async () => {
-    const { data: sessions } = await supabase.from("sessions").select("*");
+    // User laden
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("username, full_name")
+        .eq("id", user.id)
+        .single();
+
+      if (profile?.username) {
+        setUserName(profile.username);
+      } else if (profile?.full_name) {
+        setUserName(profile.full_name);
+      } else {
+        setUserName(user.email?.split("@")[0] || "");
+      }
+    }
+
+    const { data: sessions } = await supabase
+      .from("sessions")
+      .select("*")
+      .eq("user_id", user?.id);
+
     if (!sessions) return;
 
     const sessionsThisYear = sessions.filter((s: any) =>
@@ -72,6 +95,7 @@ export default function Home() {
     const { data: catches } = await supabase
       .from("catches")
       .select("*, sessions(location)")
+      .eq("user_id", user?.id)
       .order("created_at", { ascending: false });
 
     if (catches) {
@@ -142,7 +166,7 @@ export default function Home() {
     <div className="p-4 max-w-xl mx-auto space-y-6">
 
       <div className="pt-4">
-        <p className="text-gray-400 text-sm">Willkommen zurück 👋</p>
+        <p className="text-gray-400 text-sm">Willkommen zurück {userName ? `${userName} 👋` : "👋"}</p>
         <h1 className="text-2xl font-bold text-white">Dashboard {currentYear}</h1>
       </div>
 

@@ -42,9 +42,11 @@ export default function NewCatchPage() {
   }, []);
 
   const loadSessions = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
     const { data } = await supabase
       .from("sessions")
       .select("*")
+      .eq("user_id", user?.id)
       .order("start_time", { ascending: false });
     setSessions(data || []);
   };
@@ -144,6 +146,8 @@ export default function NewCatchPage() {
     }
 
     setSaving(true);
+
+    const { data: { user } } = await supabase.auth.getUser();
     const weatherData = activeSessionId ? await getWeatherData() : {};
     const imageUrl = await uploadImage();
     const catchTime = manualTime
@@ -152,13 +156,18 @@ export default function NewCatchPage() {
 
     const { error } = await supabase.from("catches").insert([{
       session_id: sessionId,
-      fish, sub_fish: subFish,
+      user_id: user?.id,
+      fish,
+      sub_fish: subFish,
       length_cm: length ? Number(length) : null,
       weight_g: weight ? Number(weight) : null,
-      method, bait, status,
+      method,
+      bait,
+      status,
       location_detail: locationDetail,
       water_temp: waterTemp ? Number(waterTemp) : null,
-      notes, image_url: imageUrl,
+      notes,
+      image_url: imageUrl,
       created_at: catchTime,
       ...weatherData,
     }]);
@@ -312,19 +321,13 @@ export default function NewCatchPage() {
         <textarea placeholder="z.B. Schöner Fisch, direkt am Ufer gefangen..." onChange={(e) => setNotes(e.target.value)} rows={3} className={inputClass} />
       </div>
 
-      {/* Bild */}
       <div className="space-y-2">
         <label className={labelClass}>Foto (optional)</label>
         <label className="w-full bg-gray-800 border border-gray-700 border-dashed rounded-xl p-6 flex flex-col items-center gap-2 cursor-pointer hover:bg-gray-700 transition">
           <span className="text-3xl">📸</span>
           <span className="text-gray-400 text-sm">Foto aufnehmen oder aus Galerie wählen</span>
           <span className="text-gray-600 text-xs">wird automatisch komprimiert</span>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleImageChange}
-            className="hidden"
-          />
+          <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
         </label>
 
         {imagePreview && (
