@@ -1,10 +1,8 @@
 "use client";
 import { useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -25,7 +23,7 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/");
+    window.location.href = "/";
   };
 
   const inputClass = "w-full bg-gray-800 text-white border border-gray-700 rounded-xl p-3 placeholder-gray-600";
