@@ -51,7 +51,6 @@ export default function Home() {
   };
 
   const loadData = async () => {
-    // User laden
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       const { data: profile } = await supabase
@@ -165,11 +164,23 @@ export default function Home() {
   return (
     <div className="p-4 max-w-xl mx-auto space-y-6">
 
-      <div className="pt-4">
-        <p className="text-gray-400 text-sm">Willkommen zurück {userName ? `${userName} 👋` : "👋"}</p>
-        <h1 className="text-2xl font-bold text-white">Dashboard {currentYear}</h1>
+      {/* HEADER */}
+      <div className="pt-4 flex justify-between items-start">
+        <div>
+          <p className="text-gray-400 text-base">Willkommen zurück 👋</p>
+          <h1 className="text-3xl font-bold text-white">
+            {userName || "Angler"}
+          </h1>
+          <p className="text-gray-500 text-sm">Dashboard {currentYear}</p>
+        </div>
+        <Link href="/profile">
+          <div className="w-11 h-11 bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center text-xl transition">
+            👤
+          </div>
+        </Link>
       </div>
 
+      {/* STATS */}
       <div className="grid grid-cols-3 gap-3">
         <Link href="/catches">
           <div className="bg-gray-800 rounded-2xl p-4 flex flex-col items-center gap-1 hover:bg-gray-700 transition">
@@ -194,6 +205,7 @@ export default function Home() {
         </div>
       </div>
 
+      {/* AKTIVE SESSION oder START BUTTON */}
       {!activeSession ? (
         <Link href="/session">
           <div className="bg-green-600 hover:bg-green-500 transition rounded-2xl p-5 flex items-center justify-between shadow-lg">
@@ -253,6 +265,7 @@ export default function Home() {
         </div>
       )}
 
+      {/* LETZTER FANG */}
       {!activeSession && lastCatch && (
         <div className="bg-gray-800 rounded-2xl overflow-hidden">
           <div className="px-4 pt-4 pb-2">
