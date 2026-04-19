@@ -23,7 +23,7 @@ export default function LoginPage() {
       return;
     }
 
-    window.location.href = "/";
+    window.location.replace("/");
   };
 
   const inputClass = "w-full bg-gray-800 text-white border border-gray-700 rounded-xl p-3 placeholder-gray-600";
