@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
 
@@ -8,6 +8,31 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    // Token aus URL Hash auslesen
+    const hash = window.location.hash;
+    const params = new URLSearchParams(hash.replace("#", "?"));
+    const accessToken = params.get("access_token");
+    const refreshToken = params.get("refresh_token");
+    const type = params.get("type");
+
+    if (accessToken && type === "invite") {
+      supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken || "",
+      }).then(({ error }) => {
+        if (error) {
+          setError("Ungültiger Einladungslink ❌");
+        } else {
+          setReady(true);
+        }
+      });
+    } else {
+      setError("Ungültiger Einladungslink ❌");
+    }
+  }, []);
 
   const handleSetPassword = async () => {
     setLoading(true);
@@ -36,28 +61,32 @@ export default function RegisterPage() {
           <p className="text-gray-400 text-sm">Lege dein Passwort fest</p>
         </div>
 
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-gray-400 text-sm">Neues Passwort</label>
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={inputClass}
-            />
+        {error && (
+          <p className="text-red-400 text-sm text-center">{error}</p>
+        )}
+
+        {ready && (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-gray-400 text-sm">Neues Passwort</label>
+              <input
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+
+            <button
+              onClick={handleSetPassword}
+              disabled={loading}
+              className="w-full bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-bold py-4 rounded-2xl text-lg transition"
+            >
+              {loading ? "⏳ Wird gespeichert..." : "✅ Passwort festlegen"}
+            </button>
           </div>
-
-          {error && <p className="text-red-400 text-sm">{error}</p>}
-
-          <button
-            onClick={handleSetPassword}
-            disabled={loading}
-            className="w-full bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-bold py-4 rounded-2xl text-lg transition"
-          >
-            {loading ? "⏳ Wird gespeichert..." : "✅ Passwort festlegen"}
-          </button>
-        </div>
+        )}
 
       </div>
     </div>
