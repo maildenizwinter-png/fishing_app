@@ -12,14 +12,12 @@ export default function RegisterPage() {
 
   useEffect(() => {
     const checkSession = async () => {
-      // Erst prüfen ob bereits eine Session existiert
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         setReady(true);
         return;
       }
 
-      // token_hash aus URL Query Parametern lesen
       const params = new URLSearchParams(window.location.search);
       const tokenHash = params.get("token_hash");
       const type = params.get("type");
@@ -28,16 +26,20 @@ export default function RegisterPage() {
       console.log("type:", type);
 
       if (tokenHash && type === "invite") {
-        const { error } = await supabase.auth.verifyOtp({
+        const { data, error } = await supabase.auth.verifyOtp({
           token_hash: tokenHash,
           type: "invite",
         });
 
+        console.log("verifyOtp data:", JSON.stringify(data));
+        console.log("verifyOtp error:", error);
+
         if (error) {
-          console.log("OTP Fehler:", error.message);
           setError("Ungültiger Einladungslink ❌");
-        } else {
+        } else if (data.session) {
           setReady(true);
+        } else {
+          setError("Session konnte nicht erstellt werden ❌");
         }
       } else {
         setError("Ungültiger Einladungslink ❌");
