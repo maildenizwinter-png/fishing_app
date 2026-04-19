@@ -7,7 +7,7 @@ export async function middleware(request: NextRequest) {
   )
 
   const hasSession = request.cookies.getAll().some(
-    cookie => cookie.name.includes('auth-token')
+    cookie => cookie.name.startsWith('sb-')
   )
 
   if (!hasSession && !isPublicPath) {
