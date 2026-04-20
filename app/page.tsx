@@ -1,11 +1,3 @@
-const loadData = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) {
-    window.location.href = "/login";
-    return;
-  }
-
 "use client";
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
@@ -60,26 +52,30 @@ export default function Home() {
 
   const loadData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("username, full_name")
-        .eq("id", user.id)
-        .single();
 
-      if (profile?.username) {
-        setUserName(profile.username);
-      } else if (profile?.full_name) {
-        setUserName(profile.full_name);
-      } else {
-        setUserName(user.email?.split("@")[0] || "");
-      }
+    if (!user) {
+      window.location.href = "/login";
+      return;
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("username, full_name")
+      .eq("id", user.id)
+      .single();
+
+    if (profile?.username) {
+      setUserName(profile.username);
+    } else if (profile?.full_name) {
+      setUserName(profile.full_name);
+    } else {
+      setUserName(user.email?.split("@")[0] || "");
     }
 
     const { data: sessions } = await supabase
       .from("sessions")
       .select("*")
-      .eq("user_id", user?.id);
+      .eq("user_id", user.id);
 
     if (!sessions) return;
 
@@ -102,7 +98,7 @@ export default function Home() {
     const { data: catches } = await supabase
       .from("catches")
       .select("*, sessions(location)")
-      .eq("user_id", user?.id)
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
     if (catches) {
