@@ -197,8 +197,8 @@ export default function Home() {
         <Link href="/sessions">
           <div className="bg-gray-800 rounded-2xl p-4 flex flex-col items-center gap-1 hover:bg-gray-700 transition">
             <span className="text-2xl">🎣</span>
-            <span className="text-xl font-bold text-white">{sessionCount}</span>
-            <span className="text-xs text-gray-400 text-center">{currentYear} Sessions</span>
+            <span className="text-xs text-gray-400 text-center">Sessions</span>
+            <span className="text-xl font-bold text-white">{currentYear}</span>
           </div>
         </Link>
 
