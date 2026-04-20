@@ -8,23 +8,26 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleLogin = async () => {
-    setLoading(true);
-    setError("");
+const handleLogin = async () => {
+  setLoading(true);
+  setError("");
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
 
-    if (error) {
-      setError("Email oder Passwort falsch ❌");
-      setLoading(false);
-      return;
-    }
+  if (error) {
+    setError("Email oder Passwort falsch ❌");
+    setLoading(false);
+    return;
+  }
 
-   window.location.href = "/";
-  };
+  // Warte kurz damit die Session gesetzt wird
+  setTimeout(() => {
+    window.location.href = "/";
+  }, 500);
+};
 
   const inputClass = "w-full bg-gray-800 text-white border border-gray-700 rounded-xl p-3 placeholder-gray-600";
 

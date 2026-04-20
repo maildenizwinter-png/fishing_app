@@ -1,24 +1,5 @@
-import { NextResponse, type NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 
-export async function middleware(request: NextRequest) {
-  const publicPaths = ['/login', '/register']
-  const isPublicPath = publicPaths.some(path =>
-    request.nextUrl.pathname.startsWith(path)
-  )
-
-  const hasSession = request.cookies.getAll().some(
-    cookie => cookie.name.startsWith('sb-')
-  )
-
-  if (!hasSession && !isPublicPath) {
-    return NextResponse.redirect(new URL('/login', request.url))
-  }
-
+export function middleware() {
   return NextResponse.next()
-}
-
-export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
 }

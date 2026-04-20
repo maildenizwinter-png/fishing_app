@@ -1,3 +1,11 @@
+const loadData = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    window.location.href = "/login";
+    return;
+  }
+
 "use client";
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
