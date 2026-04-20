@@ -105,28 +105,39 @@ export default function NewCatchPage() {
     setImagePreview(URL.createObjectURL(compressed));
   };
 
-  const getWeatherData = async () => {
-    return new Promise<any>((resolve) => {
-      if (!navigator.geolocation) { resolve({}); return; }
+  const getLocationData = async () => {
+    return new Promise<{ latitude: number | null; longitude: number | null }>((resolve) => {
+      if (!navigator.geolocation) {
+        resolve({ latitude: null, longitude: null });
+        return;
+      }
       navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          try {
-            const lat = position.coords.latitude;
-            const lon = position.coords.longitude;
-            const res = await fetch(
-              `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${process.env.NEXT_PUBLIC_WEATHER_API_KEY}&units=metric`
-            );
-            const data = await res.json();
-            resolve({
-              temperature: data.main?.temp ?? null,
-              pressure: data.main?.pressure ?? null,
-              weather: data.weather?.[0]?.main ?? null,
-            });
-          } catch { resolve({}); }
+        (position) => {
+          resolve({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
         },
-        () => resolve({})
+        () => resolve({ latitude: null, longitude: null }),
+        { timeout: 10000 }
       );
     });
+  };
+
+  const getWeatherData = async (lat: number, lon: number) => {
+    try {
+      const res = await fetch(
+        `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${process.env.NEXT_PUBLIC_WEATHER_API_KEY}&units=metric`
+      );
+      const data = await res.json();
+      return {
+        temperature: data.main?.temp ?? null,
+        pressure: data.main?.pressure ?? null,
+        weather: data.weather?.[0]?.main ?? null,
+      };
+    } catch {
+      return { temperature: null, pressure: null, weather: null };
+    }
   };
 
   const uploadImage = async (): Promise<string | null> => {
@@ -139,16 +150,18 @@ export default function NewCatchPage() {
   };
 
   const handleSubmit = async () => {
-    const sessionId = activeSessionId || selectedSessionId;
-    if (!sessionId) {
-      alert("Bitte eine Session auswählen ❌");
-      return;
-    }
-
     setSaving(true);
 
     const { data: { user } } = await supabase.auth.getUser();
-    const weatherData = activeSessionId ? await getWeatherData() : {};
+    const sessionId = activeSessionId || selectedSessionId || null;
+
+    // GPS + Wetter immer holen
+    const { latitude, longitude } = await getLocationData();
+    let weatherData = { temperature: null, pressure: null, weather: null };
+    if (latitude && longitude) {
+      weatherData = await getWeatherData(latitude, longitude);
+    }
+
     const imageUrl = await uploadImage();
     const catchTime = manualTime
       ? new Date(manualTime).toISOString()
@@ -169,6 +182,8 @@ export default function NewCatchPage() {
       notes,
       image_url: imageUrl,
       created_at: catchTime,
+      latitude,
+      longitude,
       ...weatherData,
     }]);
 
@@ -198,25 +213,29 @@ export default function NewCatchPage() {
 
       <div className="pt-4">
         <h1 className="text-2xl font-bold text-white">🐟 Neuer Fang</h1>
-        <p className="text-gray-400 text-sm">
-          {activeSessionId ? "Wetter wird automatisch erfasst 🌦️" : "Fang nachtragen 📅"}
-        </p>
+        <p className="text-gray-400 text-sm">GPS + Wetter werden automatisch erfasst 🌦️📍</p>
       </div>
 
-      {!activeSessionId && (
-        <div className="space-y-2">
-          <label className={labelClass}>Session</label>
-          <select onChange={(e) => setSelectedSessionId(Number(e.target.value))} className={inputClass}>
-            <option value="">Session wählen</option>
-            {sessions.map((s) => (
-              <option key={s.id} value={s.id}>{formatSessionLabel(s)}</option>
-            ))}
-          </select>
-        </div>
-      )}
+      {/* Session wählen – optional */}
+      <div className="space-y-2">
+        <label className={labelClass}>Session (optional)</label>
+        <select
+          onChange={(e) => setSelectedSessionId(e.target.value ? Number(e.target.value) : null)}
+          className={inputClass}
+          defaultValue={activeSessionId?.toString() || ""}
+        >
+          <option value="">Kein Session</option>
+          {activeSessionId && (
+            <option value={activeSessionId}>Aktive Session</option>
+          )}
+          {sessions.map((s) => (
+            <option key={s.id} value={s.id}>{formatSessionLabel(s)}</option>
+          ))}
+        </select>
+      </div>
 
       <div className="space-y-2">
-        <label className={labelClass}>Zeitpunkt {activeSessionId ? "(optional – leer = jetzt)" : ""}</label>
+        <label className={labelClass}>Zeitpunkt (optional – leer = jetzt)</label>
         <input type="datetime-local" value={manualTime} onChange={(e) => setManualTime(e.target.value)} className={inputClass} />
       </div>
 
@@ -348,7 +367,7 @@ export default function NewCatchPage() {
         disabled={saving}
         className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-bold py-4 rounded-2xl text-lg transition"
       >
-        {saving ? "⏳ Wird gespeichert..." : "💾 Fang speichern"}
+        {saving ? "⏳ GPS + Wetter werden erfasst..." : "💾 Fang speichern"}
       </button>
 
     </div>
