@@ -170,16 +170,17 @@ export default function Home() {
 
       {/* HEADER */}
       <div className="pt-4 flex justify-between items-start">
-        <div className="space-y-1">
+        <div>
           <p className="text-gray-400 text-sm">Willkommen zurück 👋</p>
+          <div className="h-1" />
           <h1 className="text-3xl font-bold text-gray-500">
             {userName || "Angler"}
           </h1>
-          <div className="h-2" />
+          <div className="h-3" />
         </div>
         <Link href="/profile">
-          <div className="w-11 h-11 bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center transition">
-            <span className="text-white text-xl">👤</span>
+          <div className="w-11 h-11 bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center transition text-white text-lg font-bold">
+            P
           </div>
         </Link>
       </div>
@@ -197,8 +198,9 @@ export default function Home() {
         <Link href="/sessions">
           <div className="bg-gray-800 rounded-2xl p-4 flex flex-col items-center gap-1 hover:bg-gray-700 transition">
             <span className="text-2xl">🎣</span>
-            <span className="text-xs text-gray-400 text-center">Sessions</span>
-            <span className="text-xl font-bold text-white">{currentYear}</span>
+            <span className="text-xs text-gray-400">Sessions</span>
+            <span className="text-xl font-bold text-white">{sessionCount}</span>
+            <span className="text-xs text-gray-400">{currentYear}</span>
           </div>
         </Link>
 
@@ -271,7 +273,7 @@ export default function Home() {
 
       {/* LETZTER FANG */}
       {!activeSession && lastCatch && (
-        <div className="bg-gray-800 rounded-2xl overflow-hidden mt-6">
+        <div className="bg-gray-800 rounded-2xl overflow-hidden">
           <div className="px-4 pt-4 pb-2">
             <p className="text-gray-400 text-xs uppercase tracking-wider">Letzter Fang</p>
           </div>
