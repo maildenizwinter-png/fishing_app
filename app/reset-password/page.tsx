@@ -10,8 +10,32 @@ export default function ResetPasswordPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [ready, setReady] = useState(false);
 
   const inputClass = "w-full bg-gray-800 text-white border border-gray-700 rounded-xl p-3 placeholder-gray-600";
+
+  useEffect(() => {
+    // Token aus URL Hash lesen und Session setzen
+    const hash = window.location.hash;
+    const params = new URLSearchParams(hash.replace("#", ""));
+    const accessToken = params.get("access_token");
+    const refreshToken = params.get("refresh_token");
+
+    if (accessToken && refreshToken) {
+      supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      }).then(({ error }) => {
+        if (error) {
+          setError("Link ungültig oder abgelaufen ❌");
+        } else {
+          setReady(true);
+        }
+      });
+    } else {
+      setError("Kein gültiger Reset-Link ❌");
+    }
+  }, []);
 
   const handleReset = async () => {
     if (password !== confirm) {
@@ -52,6 +76,8 @@ export default function ResetPasswordPage() {
 
         {success ? (
           <p className="text-green-400 text-center">✅ Passwort geändert! Du wirst weitergeleitet...</p>
+        ) : !ready ? (
+          <p className="text-gray-400 text-center">{error || "⏳ Link wird geprüft..."}</p>
         ) : (
           <div className="space-y-4">
             <div className="space-y-2">
