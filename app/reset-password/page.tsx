@@ -15,16 +15,14 @@ export default function ResetPasswordPage() {
   const inputClass = "w-full bg-gray-800 text-white border border-gray-700 rounded-xl p-3 placeholder-gray-600";
 
   useEffect(() => {
-    // Token aus URL Hash lesen und Session setzen
-    const hash = window.location.hash;
-    const params = new URLSearchParams(hash.replace("#", ""));
-    const accessToken = params.get("access_token");
-    const refreshToken = params.get("refresh_token");
+    const params = new URLSearchParams(window.location.search);
+    const tokenHash = params.get("token_hash");
+    const type = params.get("type");
 
-    if (accessToken && refreshToken) {
-      supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
+    if (tokenHash && type === "recovery") {
+      supabase.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: "recovery",
       }).then(({ error }) => {
         if (error) {
           setError("Link ungültig oder abgelaufen ❌");
