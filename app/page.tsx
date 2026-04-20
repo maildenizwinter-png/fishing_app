@@ -200,7 +200,7 @@ export default function Home() {
             <span className="text-2xl">🎣</span>
             <span className="text-xs text-gray-400">Sessions</span>
             <span className="text-xl font-bold text-white">{sessionCount}</span>
-            <span className="text-xs text-gray-400">{currentYear}</span>
+            <span className="text-xs text-gray-400 text-center">{currentYear}</span>
           </div>
         </Link>
 
