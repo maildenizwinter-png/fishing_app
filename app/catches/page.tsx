@@ -19,6 +19,9 @@ export default function CatchesPage() {
   const [editTime, setEditTime] = useState("");
   const [editLat, setEditLat] = useState("");
   const [editLon, setEditLon] = useState("");
+  const [editImageUrl, setEditImageUrl] = useState<string | null>(null);
+  const [editImageFile, setEditImageFile] = useState<File | null>(null);
+  const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
 
   const [galleryImage, setGalleryImage] = useState<string | null>(null);
 
@@ -89,10 +92,52 @@ export default function CatchesPage() {
     setEditTime(toLocalDatetimeString(c.created_at));
     setEditLat(c.latitude?.toString() || "");
     setEditLon(c.longitude?.toString() || "");
+    setEditImageUrl(c.image_url || null);
+    setEditImageFile(null);
+    setEditImagePreview(null);
     handleFishChange(c.fish);
   };
 
+  const compressImage = (file: File): Promise<Blob> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.src = url;
+      img.onload = () => {
+        const maxWidth = 1200;
+        const scale = Math.min(1, maxWidth / img.width);
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url);
+        canvas.toBlob((blob) => resolve(blob!), "image/jpeg", 0.75);
+      };
+    });
+  };
+
+  const handleEditImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const compressed = await compressImage(file);
+    const compressedFile = new File([compressed], file.name, { type: "image/jpeg" });
+    setEditImageFile(compressedFile);
+    setEditImagePreview(URL.createObjectURL(compressed));
+  };
+
+  const uploadEditImage = async (): Promise<string | null> => {
+    if (!editImageFile) return editImageUrl;
+    const fileName = `${Date.now()}.jpg`;
+    const { error } = await supabase.storage.from("catch-images").upload(fileName, editImageFile);
+    if (error) { console.error("Bild-Upload Fehler:", error.message); return editImageUrl; }
+    const { data } = supabase.storage.from("catch-images").getPublicUrl(fileName);
+    return data.publicUrl;
+  };
+
   const saveEdit = async (id: number) => {
+    const imageUrl = await uploadEditImage();
+
     await supabase.from("catches").update({
       fish,
       sub_fish: subFish,
@@ -106,6 +151,7 @@ export default function CatchesPage() {
       created_at: editTime ? new Date(editTime).toISOString() : undefined,
       latitude: editLat ? Number(editLat) : null,
       longitude: editLon ? Number(editLon) : null,
+      image_url: imageUrl,
     }).eq("id", id);
     setEditingId(null);
     load();
@@ -171,17 +217,11 @@ export default function CatchesPage() {
           className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
           onClick={() => setGalleryImage(null)}
         >
-          <img
-            src={galleryImage}
-            alt="Fang"
-            className="max-w-full max-h-full rounded-2xl object-contain"
-          />
+          <img src={galleryImage} alt="Fang" className="max-w-full max-h-full rounded-2xl object-contain" />
           <button
             className="absolute top-4 right-4 bg-gray-800 text-white rounded-full w-10 h-10 flex items-center justify-center text-xl"
             onClick={() => setGalleryImage(null)}
-          >
-            ✕
-          </button>
+          >✕</button>
         </div>
       )}
 
@@ -192,39 +232,32 @@ export default function CatchesPage() {
 
       <div className="bg-gray-800 rounded-2xl p-4 space-y-3">
         <p className="text-gray-400 text-xs uppercase tracking-wider">Filter</p>
-
         <div className="grid grid-cols-2 gap-2">
           <select value={filterLocation} onChange={(e) => setFilterLocation(e.target.value)} className={inputClass + " w-full"}>
             <option value="">Alle Gewässer</option>
             {uniqueLocations.map((loc) => <option key={loc} value={loc}>{loc}</option>)}
           </select>
-
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className={inputClass + " w-full"}>
             <option value="">Alle Status</option>
             <option>Entnommen</option>
             <option>Zurückgesetzt</option>
           </select>
         </div>
-
         <div className="grid grid-cols-2 gap-2">
           <select value={filterFish} onChange={(e) => setFilterFish(e.target.value)} className={inputClass + " w-full"}>
             <option value="">Alle Fischarten</option>
             {uniqueFish.map((f) => <option key={f} value={f}>{f}</option>)}
           </select>
-
           <select value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className={inputClass + " w-full"}>
             <option value="">Alle Monate</option>
             {uniqueMonths.map((m) => <option key={m} value={m!}>{m}</option>)}
           </select>
         </div>
-
         {(filterLocation || filterStatus || filterMonth || filterFish) && (
           <button
             onClick={() => { setFilterLocation(""); setFilterStatus(""); setFilterMonth(""); setFilterFish(""); }}
             className="text-red-400 text-sm hover:text-red-300 transition"
-          >
-            ✕ Filter zurücksetzen
-          </button>
+          >✕ Filter zurücksetzen</button>
         )}
       </div>
 
@@ -235,7 +268,7 @@ export default function CatchesPage() {
       {filtered.map((c: any) => (
         <div key={c.id} className="bg-gray-800 rounded-2xl overflow-hidden">
 
-          {c.image_url && (
+          {c.image_url && editingId !== c.id && (
             <img
               src={c.image_url}
               alt={c.fish}
@@ -304,34 +337,15 @@ export default function CatchesPage() {
                 {/* Zeitpunkt */}
                 <div className="space-y-1">
                   <p className="text-gray-400 text-xs">🕒 Zeitpunkt</p>
-                  <input
-                    type="datetime-local"
-                    value={editTime}
-                    onChange={(e) => setEditTime(e.target.value)}
-                    className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2"
-                  />
+                  <input type="datetime-local" value={editTime} onChange={(e) => setEditTime(e.target.value)} className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2" />
                 </div>
 
                 {/* GPS */}
                 <div className="space-y-1">
                   <p className="text-gray-400 text-xs">📍 GPS Koordinaten</p>
                   <div className="grid grid-cols-2 gap-2">
-                    <input
-                      value={editLat}
-                      onChange={(e) => setEditLat(e.target.value)}
-                      placeholder="Breitengrad"
-                      type="number"
-                      step="any"
-                      className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2 text-sm"
-                    />
-                    <input
-                      value={editLon}
-                      onChange={(e) => setEditLon(e.target.value)}
-                      placeholder="Längengrad"
-                      type="number"
-                      step="any"
-                      className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2 text-sm"
-                    />
+                    <input value={editLat} onChange={(e) => setEditLat(e.target.value)} placeholder="Breitengrad" type="number" step="any" className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2 text-sm" />
+                    <input value={editLon} onChange={(e) => setEditLon(e.target.value)} placeholder="Längengrad" type="number" step="any" className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2 text-sm" />
                   </div>
                   <button
                     onClick={() => {
@@ -345,6 +359,32 @@ export default function CatchesPage() {
                   >
                     📍 Aktuellen Standort verwenden
                   </button>
+                </div>
+
+                {/* Foto */}
+                <div className="space-y-2">
+                  <p className="text-gray-400 text-xs">📸 Foto</p>
+
+                  {/* Vorschau: neues Bild oder bestehendes */}
+                  {(editImagePreview || editImageUrl) && (
+                    <div className="relative">
+                      <img
+                        src={editImagePreview || editImageUrl!}
+                        alt="Vorschau"
+                        className="w-full rounded-xl object-cover max-h-48"
+                      />
+                      <button
+                        onClick={() => { setEditImageFile(null); setEditImagePreview(null); setEditImageUrl(null); }}
+                        className="absolute top-2 right-2 bg-red-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm"
+                      >✕</button>
+                    </div>
+                  )}
+
+                  <label className="w-full bg-gray-700 border border-gray-600 border-dashed rounded-xl p-4 flex flex-col items-center gap-1 cursor-pointer hover:bg-gray-600 transition">
+                    <span className="text-2xl">📸</span>
+                    <span className="text-gray-400 text-sm">{editImageUrl || editImagePreview ? "Foto ersetzen" : "Foto hinzufügen"}</span>
+                    <input type="file" accept="image/*" onChange={handleEditImageChange} className="hidden" />
+                  </label>
                 </div>
 
                 <div className="flex gap-2">
