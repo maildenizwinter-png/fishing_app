@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "../lib/supabaseClient";
 import Link from "next/link";
 
@@ -11,6 +11,11 @@ export default function Home() {
   const [sessionCatches, setSessionCatches] = useState<any[]>([]);
   const [lastCatch, setLastCatch] = useState<any>(null);
   const [userName, setUserName] = useState("");
+  const [pullDistance, setPullDistance] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const touchStartY = useRef<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const currentYear = new Date().getFullYear();
 
@@ -126,6 +131,35 @@ export default function Home() {
     }
   };
 
+  // Pull to Refresh Handler
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (window.scrollY === 0) {
+      touchStartY.current = e.touches[0].clientY;
+    } else {
+      touchStartY.current = null;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartY.current === null) return;
+    const diff = e.touches[0].clientY - touchStartY.current;
+    if (diff > 0 && window.scrollY === 0) {
+      // Nur nach unten ziehen, max 120px
+      setPullDistance(Math.min(diff, 120));
+    }
+  };
+
+  const handleTouchEnd = async () => {
+    if (pullDistance > 70 && !refreshing) {
+      setRefreshing(true);
+      setPullDistance(60);
+      await loadData();
+      setRefreshing(false);
+    }
+    setPullDistance(0);
+    touchStartY.current = null;
+  };
+
   const endSession = async () => {
     if (!activeSession) return;
     if (!confirm("Session wirklich beenden?")) return;
@@ -166,7 +200,35 @@ export default function Home() {
   };
 
   return (
-    <div className="p-4 max-w-xl mx-auto space-y-6">
+    <div
+      ref={containerRef}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      style={{
+        transform: `translateY(${pullDistance}px)`,
+        transition: pullDistance === 0 ? "transform 0.3s ease-out" : "none",
+      }}
+      className="p-4 max-w-xl mx-auto space-y-6"
+    >
+
+      {/* PULL TO REFRESH INDICATOR */}
+      {(pullDistance > 0 || refreshing) && (
+        <div
+          className="absolute left-0 right-0 flex flex-col items-center justify-center text-gray-400 text-sm"
+          style={{
+            top: `-${60 - pullDistance / 2}px`,
+            opacity: Math.min(pullDistance / 70, 1),
+          }}
+        >
+          <span className="text-2xl mb-1">
+            {refreshing ? "⏳" : pullDistance > 70 ? "🔄" : "⬇️"}
+          </span>
+          <span>
+            {refreshing ? "Lädt..." : pullDistance > 70 ? "Loslassen zum Aktualisieren" : "Weiter ziehen..."}
+          </span>
+        </div>
+      )}
 
       {/* HEADER */}
       <div className="pt-4 flex justify-between items-start">
