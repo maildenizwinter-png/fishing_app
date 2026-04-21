@@ -20,6 +20,7 @@ export default function SessionDetailPage() {
   const [logs, setLogs] = useState<any[]>([]);
   const [galleryImage, setGalleryImage] = useState<string | null>(null);
   const [showMap, setShowMap] = useState(false);
+  const [chartMode, setChartMode] = useState<"druck" | "temp">("druck");
 
   const load = async () => {
     const { data: sessionData } = await supabase
@@ -75,38 +76,45 @@ export default function SessionDetailPage() {
   const buildChartData = () => {
     const points: any[] = [];
 
-    if (session?.pressure && session?.start_time) {
-      points.push({
-        time: new Date(session.start_time + "Z").toLocaleTimeString("de-DE", {
-          hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin"
-        }),
-        druck: session.pressure,
-        fang: null,
-        timestamp: new Date(session.start_time).getTime(),
-      });
+    if (session?.start_time) {
+      const val = chartMode === "druck" ? session.pressure : session.temperature;
+      if (val) {
+        points.push({
+          time: new Date(session.start_time + "Z").toLocaleTimeString("de-DE", {
+            hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin"
+          }),
+          wert: val,
+          fang: null,
+          timestamp: new Date(session.start_time).getTime(),
+        });
+      }
     }
 
     logs.forEach((log) => {
-      if (!log.pressure || !log.created_at) return;
+      if (!log.created_at) return;
+      const val = chartMode === "druck" ? log.pressure : log.temperature;
+      if (!val) return;
       const t = new Date(log.created_at);
       points.push({
         time: t.toLocaleTimeString("de-DE", {
           hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin"
         }),
-        druck: log.pressure,
+        wert: val,
         fang: null,
         timestamp: t.getTime(),
       });
     });
 
     catches.forEach((c) => {
-      if (!c.pressure || !c.created_at) return;
+      if (!c.created_at) return;
+      const val = chartMode === "druck" ? c.pressure : c.temperature;
+      if (!val) return;
       const t = new Date(c.created_at.replace(" ", "T"));
       points.push({
         time: t.toLocaleTimeString("de-DE", {
           hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin"
         }),
-        druck: c.pressure,
+        wert: val,
         fang: c.fish,
         timestamp: t.getTime(),
       });
@@ -127,7 +135,7 @@ export default function SessionDetailPage() {
         </g>
       );
     }
-    return <circle cx={cx} cy={cy} r={3} fill="#f59e0b" />;
+    return <circle cx={cx} cy={cy} r={3} fill={chartMode === "druck" ? "#f59e0b" : "#10b981"} />;
   };
 
   const CustomTooltip = ({ active, payload }: any) => {
@@ -136,7 +144,9 @@ export default function SessionDetailPage() {
       return (
         <div className="bg-gray-900 border border-gray-700 rounded-xl p-3 text-sm">
           <p className="text-gray-400">{d.time}</p>
-          <p className="text-white font-bold">{d.druck} hPa</p>
+          <p className="text-white font-bold">
+            {d.wert} {chartMode === "druck" ? "hPa" : "°C"}
+          </p>
           {d.fang && <p className="text-blue-400">🐟 {d.fang}</p>}
         </div>
       );
@@ -213,24 +223,51 @@ export default function SessionDetailPage() {
       {/* KARTE */}
       {showMap && hasMapData && (
         <div className="rounded-2xl overflow-hidden" style={{ height: "350px" }}>
-         <SessionMap session={session} catches={catches} logs={logs} />
+          <SessionMap session={session} catches={catches} logs={logs} />
         </div>
       )}
 
-      {/* LUFTDRUCK CHART */}
+      {/* VERLAUF CHART mit Toggle */}
       {chartData.length > 1 && (
         <div className="bg-gray-800 rounded-2xl p-4 space-y-3">
-          <h2 className="text-white font-bold">💨 Luftdruckverlauf</h2>
-          <p className="text-gray-500 text-xs">🐟 = Fang bei diesem Luftdruck</p>
+
+          {/* Toggle Header */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setChartMode("druck")}
+              className={`font-bold text-base transition ${
+                chartMode === "druck" ? "text-yellow-400" : "text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              💨 Luftdruckverlauf
+            </button>
+            <span className="text-gray-600">|</span>
+            <button
+              onClick={() => setChartMode("temp")}
+              className={`font-bold text-base transition ${
+                chartMode === "temp" ? "text-green-400" : "text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              🌡️ Temperaturverlauf
+            </button>
+          </div>
+
+          <p className="text-gray-500 text-xs">🐟 = Fang bei diesem Wert</p>
+
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={chartData}>
               <XAxis dataKey="time" tick={{ fill: "#9ca3af", fontSize: 10 }} />
-              <YAxis domain={["auto", "auto"]} tick={{ fill: "#9ca3af", fontSize: 10 }} unit=" hPa" width={60} />
+              <YAxis
+                domain={["auto", "auto"]}
+                tick={{ fill: "#9ca3af", fontSize: 10 }}
+                unit={chartMode === "druck" ? " hPa" : " °C"}
+                width={60}
+              />
               <Tooltip content={<CustomTooltip />} />
               <Line
                 type="monotone"
-                dataKey="druck"
-                stroke="#f59e0b"
+                dataKey="wert"
+                stroke={chartMode === "druck" ? "#f59e0b" : "#10b981"}
                 strokeWidth={2}
                 dot={<CustomDot />}
               />
