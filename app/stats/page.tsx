@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import * as XLSX from "xlsx";
+import { useRouter } from "next/navigation";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell
@@ -10,6 +11,7 @@ import {
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
 
 export default function StatsPage() {
+  const router = useRouter();
   const [catches, setCatches] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
@@ -20,14 +22,19 @@ export default function StatsPage() {
   }, []);
 
   const load = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { router.push("/login"); return; }
+
     const { data: catchData } = await supabase
       .from("catches")
       .select("*, sessions(location, pressure)")
+      .eq("user_id", user.id)
       .order("created_at", { ascending: true });
 
     const { data: sessionData } = await supabase
       .from("sessions")
       .select("*, catches(count)")
+      .eq("user_id", user.id)
       .order("start_time", { ascending: true });
 
     const { data: logData } = await supabase
@@ -191,6 +198,8 @@ export default function StatsPage() {
     { name: "➡️ Gleich", count: trendCounts.gleichbleibend, fill: "#f59e0b" },
   ];
 
+  const catchesWithGps = catches.filter((c) => c.latitude && c.longitude);
+
   return (
     <div className="p-4 max-w-xl mx-auto space-y-8">
 
@@ -198,6 +207,19 @@ export default function StatsPage() {
         <h1 className="text-2xl font-bold text-white">📊 Auswertung</h1>
         <p className="text-gray-400 text-sm">{catches.length} Fänge gesamt</p>
       </div>
+
+      {/* Karten Button */}
+      {catchesWithGps.length > 0 && (
+        <a href="/map">
+          <div className="bg-blue-600 hover:bg-blue-500 transition rounded-2xl p-4 flex items-center justify-between">
+            <div>
+              <p className="text-white font-bold">🗺️ Alle Fänge auf Karte</p>
+              <p className="text-blue-200 text-sm">{catchesWithGps.length} Fänge mit GPS-Daten</p>
+            </div>
+            <span className="text-2xl">→</span>
+          </div>
+        </a>
+      )}
 
       {/* Excel Export */}
       <div className="flex gap-3">
@@ -252,15 +274,7 @@ export default function StatsPage() {
         ) : (
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
-              <Pie
-                data={weatherData}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                outerRadius={80}
-                label={({ name, value }) => `${name} (${value})`}
-              >
+              <Pie data={weatherData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name} (${value})`}>
                 {weatherData.map((_, index) => (
                   <Cell key={index} fill={COLORS[index % COLORS.length]} />
                 ))}

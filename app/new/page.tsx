@@ -247,6 +247,7 @@ export default function NewCatchPage() {
           <option>Karpfen</option>
           <option>Äsche</option>
           <option>Bachsaibling</option>
+          <option>Seesaibling</option>
           <option>Felchen</option>
           <option>Hecht</option>
           <option>Wels</option>
