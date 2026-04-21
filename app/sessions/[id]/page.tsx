@@ -213,7 +213,7 @@ export default function SessionDetailPage() {
       {/* KARTE */}
       {showMap && hasMapData && (
         <div className="rounded-2xl overflow-hidden" style={{ height: "350px" }}>
-          <SessionMap session={session} catches={catches} />
+         <SessionMap session={session} catches={catches} logs={logs} />
         </div>
       )}
 
