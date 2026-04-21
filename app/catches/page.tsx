@@ -26,7 +26,7 @@ export default function CatchesPage() {
   const [galleryImage, setGalleryImage] = useState<string | null>(null);
 
   const [filterLocation, setFilterLocation] = useState("");
-  const [filterMonth, setFilterMonth] = useState("");
+  const [filterYear, setFilterYear] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterFish, setFilterFish] = useState("");
 
@@ -137,7 +137,6 @@ export default function CatchesPage() {
 
   const saveEdit = async (id: number) => {
     const imageUrl = await uploadEditImage();
-
     await supabase.from("catches").update({
       fish,
       sub_fish: subFish,
@@ -183,13 +182,14 @@ export default function CatchesPage() {
   const uniqueLocations = Array.from(
     new Set(catches.map((c) => c.sessions?.location).filter(Boolean))
   );
-  const uniqueMonths = Array.from(
+
+  const uniqueYears = Array.from(
     new Set(catches.map((c) => {
       if (!c.created_at) return null;
-      const d = new Date(c.created_at.replace(" ", "T"));
-      return `${d.getMonth() + 1}/${d.getFullYear()}`;
+      return new Date(c.created_at.replace(" ", "T")).getFullYear().toString();
     }).filter(Boolean))
-  );
+  ).sort((a, b) => Number(b) - Number(a));
+
   const uniqueFish = Array.from(
     new Set(catches.map((c) => c.fish).filter(Boolean))
   );
@@ -198,11 +198,10 @@ export default function CatchesPage() {
     if (filterLocation && c.sessions?.location !== filterLocation) return false;
     if (filterStatus && c.status !== filterStatus) return false;
     if (filterFish && c.fish !== filterFish) return false;
-    if (filterMonth) {
+    if (filterYear) {
       if (!c.created_at) return false;
-      const d = new Date(c.created_at.replace(" ", "T"));
-      const month = `${d.getMonth() + 1}/${d.getFullYear()}`;
-      if (month !== filterMonth) return false;
+      const year = new Date(c.created_at.replace(" ", "T")).getFullYear().toString();
+      if (year !== filterYear) return false;
     }
     return true;
   });
@@ -232,32 +231,39 @@ export default function CatchesPage() {
 
       <div className="bg-gray-800 rounded-2xl p-4 space-y-3">
         <p className="text-gray-400 text-xs uppercase tracking-wider">Filter</p>
+
         <div className="grid grid-cols-2 gap-2">
           <select value={filterLocation} onChange={(e) => setFilterLocation(e.target.value)} className={inputClass + " w-full"}>
             <option value="">Alle Gewässer</option>
             {uniqueLocations.map((loc) => <option key={loc} value={loc}>{loc}</option>)}
           </select>
+
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className={inputClass + " w-full"}>
             <option value="">Alle Status</option>
             <option>Entnommen</option>
             <option>Zurückgesetzt</option>
           </select>
         </div>
+
         <div className="grid grid-cols-2 gap-2">
           <select value={filterFish} onChange={(e) => setFilterFish(e.target.value)} className={inputClass + " w-full"}>
             <option value="">Alle Fischarten</option>
             {uniqueFish.map((f) => <option key={f} value={f}>{f}</option>)}
           </select>
-          <select value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className={inputClass + " w-full"}>
-            <option value="">Alle Monate</option>
-            {uniqueMonths.map((m) => <option key={m} value={m!}>{m}</option>)}
+
+          <select value={filterYear} onChange={(e) => setFilterYear(e.target.value)} className={inputClass + " w-full"}>
+            <option value="">Alle Jahre</option>
+            {uniqueYears.map((y) => <option key={y} value={y!}>{y}</option>)}
           </select>
         </div>
-        {(filterLocation || filterStatus || filterMonth || filterFish) && (
+
+        {(filterLocation || filterStatus || filterYear || filterFish) && (
           <button
-            onClick={() => { setFilterLocation(""); setFilterStatus(""); setFilterMonth(""); setFilterFish(""); }}
+            onClick={() => { setFilterLocation(""); setFilterStatus(""); setFilterYear(""); setFilterFish(""); }}
             className="text-red-400 text-sm hover:text-red-300 transition"
-          >✕ Filter zurücksetzen</button>
+          >
+            ✕ Filter zurücksetzen
+          </button>
         )}
       </div>
 
@@ -280,7 +286,6 @@ export default function CatchesPage() {
           <div className="p-4 space-y-3">
             {editingId === c.id ? (
               <>
-                {/* Fischart */}
                 <select value={fish} onChange={(e) => handleFishChange(e.target.value)} className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2">
                   <option>Forelle</option>
                   <option>Karpfen</option>
@@ -334,13 +339,11 @@ export default function CatchesPage() {
 
                 <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notizen" className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2" />
 
-                {/* Zeitpunkt */}
                 <div className="space-y-1">
                   <p className="text-gray-400 text-xs">🕒 Zeitpunkt</p>
                   <input type="datetime-local" value={editTime} onChange={(e) => setEditTime(e.target.value)} className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2" />
                 </div>
 
-                {/* GPS */}
                 <div className="space-y-1">
                   <p className="text-gray-400 text-xs">📍 GPS Koordinaten</p>
                   <div className="grid grid-cols-2 gap-2">
@@ -361,25 +364,17 @@ export default function CatchesPage() {
                   </button>
                 </div>
 
-                {/* Foto */}
                 <div className="space-y-2">
                   <p className="text-gray-400 text-xs">📸 Foto</p>
-
-                  {/* Vorschau: neues Bild oder bestehendes */}
                   {(editImagePreview || editImageUrl) && (
                     <div className="relative">
-                      <img
-                        src={editImagePreview || editImageUrl!}
-                        alt="Vorschau"
-                        className="w-full rounded-xl object-cover max-h-48"
-                      />
+                      <img src={editImagePreview || editImageUrl!} alt="Vorschau" className="w-full rounded-xl object-cover max-h-48" />
                       <button
                         onClick={() => { setEditImageFile(null); setEditImagePreview(null); setEditImageUrl(null); }}
                         className="absolute top-2 right-2 bg-red-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm"
                       >✕</button>
                     </div>
                   )}
-
                   <label className="w-full bg-gray-700 border border-gray-600 border-dashed rounded-xl p-4 flex flex-col items-center gap-1 cursor-pointer hover:bg-gray-600 transition">
                     <span className="text-2xl">📸</span>
                     <span className="text-gray-400 text-sm">{editImageUrl || editImagePreview ? "Foto ersetzen" : "Foto hinzufügen"}</span>
