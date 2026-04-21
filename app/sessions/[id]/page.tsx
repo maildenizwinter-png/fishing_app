@@ -3,10 +3,13 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, ReferenceLine, Dot
+  ResponsiveContainer
 } from "recharts";
+
+const SessionMap = dynamic(() => import("../../components/SessionMap"), { ssr: false });
 
 export default function SessionDetailPage() {
   const { id } = useParams();
@@ -16,6 +19,7 @@ export default function SessionDetailPage() {
   const [catches, setCatches] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
   const [galleryImage, setGalleryImage] = useState<string | null>(null);
+  const [showMap, setShowMap] = useState(false);
 
   const load = async () => {
     const { data: sessionData } = await supabase
@@ -68,11 +72,9 @@ export default function SessionDetailPage() {
     });
   };
 
-  // Luftdruck Chart Daten
   const buildChartData = () => {
     const points: any[] = [];
 
-    // Session Start
     if (session?.pressure && session?.start_time) {
       points.push({
         time: new Date(session.start_time + "Z").toLocaleTimeString("de-DE", {
@@ -84,7 +86,6 @@ export default function SessionDetailPage() {
       });
     }
 
-    // Session Logs
     logs.forEach((log) => {
       if (!log.pressure || !log.created_at) return;
       const t = new Date(log.created_at);
@@ -98,7 +99,6 @@ export default function SessionDetailPage() {
       });
     });
 
-    // Fänge einzeichnen
     catches.forEach((c) => {
       if (!c.pressure || !c.created_at) return;
       const t = new Date(c.created_at.replace(" ", "T"));
@@ -117,7 +117,6 @@ export default function SessionDetailPage() {
 
   const chartData = buildChartData();
 
-  // Custom Dot für Fänge
   const CustomDot = (props: any) => {
     const { cx, cy, payload } = props;
     if (payload.fang) {
@@ -145,9 +144,11 @@ export default function SessionDetailPage() {
     return null;
   };
 
-  if (!session) return (
-    <div className="p-4 text-gray-400">Laden...</div>
-  );
+  const hasMapData =
+    (session?.latitude && session?.longitude) ||
+    catches.some((c) => c.latitude && c.longitude);
+
+  if (!session) return <div className="p-4 text-gray-400">Laden...</div>;
 
   return (
     <div className="p-4 max-w-xl mx-auto space-y-4">
@@ -158,26 +159,17 @@ export default function SessionDetailPage() {
           className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
           onClick={() => setGalleryImage(null)}
         >
-          <img
-            src={galleryImage}
-            alt="Fang"
-            className="max-w-full max-h-full rounded-2xl object-contain"
-          />
+          <img src={galleryImage} alt="Fang" className="max-w-full max-h-full rounded-2xl object-contain" />
           <button
             className="absolute top-4 right-4 bg-gray-800 text-white rounded-full w-10 h-10 flex items-center justify-center text-xl"
             onClick={() => setGalleryImage(null)}
-          >
-            ✕
-          </button>
+          >✕</button>
         </div>
       )}
 
       {/* ZURÜCK */}
       <div className="pt-4 flex items-center gap-3">
-        <button
-          onClick={() => router.back()}
-          className="text-gray-400 hover:text-white transition"
-        >
+        <button onClick={() => router.back()} className="text-gray-400 hover:text-white transition">
           ← Zurück
         </button>
       </div>
@@ -204,6 +196,27 @@ export default function SessionDetailPage() {
         </div>
       </div>
 
+      {/* KARTEN BUTTON */}
+      {hasMapData && (
+        <button
+          onClick={() => setShowMap(!showMap)}
+          className="w-full bg-blue-600 hover:bg-blue-500 transition rounded-2xl p-4 flex items-center justify-between"
+        >
+          <div>
+            <p className="text-white font-bold">🗺️ Kartenansicht</p>
+            <p className="text-blue-200 text-sm">Start, Fänge und Ende auf der Karte</p>
+          </div>
+          <span className="text-white text-xl">{showMap ? "▲" : "▼"}</span>
+        </button>
+      )}
+
+      {/* KARTE */}
+      {showMap && hasMapData && (
+        <div className="rounded-2xl overflow-hidden" style={{ height: "350px" }}>
+          <SessionMap session={session} catches={catches} />
+        </div>
+      )}
+
       {/* LUFTDRUCK CHART */}
       {chartData.length > 1 && (
         <div className="bg-gray-800 rounded-2xl p-4 space-y-3">
@@ -229,7 +242,7 @@ export default function SessionDetailPage() {
       {/* FÄNGE */}
       <div className="space-y-3">
         <div className="flex justify-between items-center">
-          <h2 className="text-white font-bold text-lg">🐟 Fänge ({catches.length})</h2>
+          <h2 className="text-white font-bold text-lg">🐟 Fänge ({catches?.length ?? 0})</h2>
           <Link href="/new">
             <button className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded-xl text-sm transition">
               ➕ Fang
@@ -237,13 +250,12 @@ export default function SessionDetailPage() {
           </Link>
         </div>
 
-        {catches.length === 0 && (
+        {catches?.length === 0 && (
           <p className="text-gray-500 text-sm">Noch keine Fänge für diese Session</p>
         )}
 
-        {catches.map((c: any) => (
+        {catches?.map((c: any) => (
           <div key={c.id} className="bg-gray-800 rounded-2xl overflow-hidden">
-
             {c.image_url && (
               <img
                 src={c.image_url}
@@ -252,15 +264,12 @@ export default function SessionDetailPage() {
                 onClick={() => setGalleryImage(c.image_url)}
               />
             )}
-
             <div className="p-4 space-y-2">
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-white font-bold">
                     {c.fish}
-                    {c.sub_fish && (
-                      <span className="text-gray-400 font-normal text-sm ml-2">{c.sub_fish}</span>
-                    )}
+                    {c.sub_fish && <span className="text-gray-400 font-normal text-sm ml-2">{c.sub_fish}</span>}
                   </p>
                   <p className="text-gray-400 text-sm">
                     {c.length_cm ? `📏 ${c.length_cm} cm` : ""}
@@ -288,9 +297,7 @@ export default function SessionDetailPage() {
                 {c.weather && <span>🌦️ {c.weather}</span>}
               </div>
 
-              {c.notes && (
-                <p className="text-gray-500 text-sm italic">"{c.notes}"</p>
-              )}
+              {c.notes && <p className="text-gray-500 text-sm italic">"{c.notes}"</p>}
             </div>
           </div>
         ))}
