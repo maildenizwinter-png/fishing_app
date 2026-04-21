@@ -4,7 +4,7 @@ import { supabase } from "../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 
-const MapView = dynamic(() => import("../../components/MapView"), { ssr: false });
+const MapView = dynamic(() => import("../components/MapView"), { ssr: false });
 
 export default function MapPage() {
   const router = useRouter();
