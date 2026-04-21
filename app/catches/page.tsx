@@ -26,9 +26,11 @@ export default function CatchesPage() {
   const [filterFish, setFilterFish] = useState("");
 
   const load = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
     const { data } = await supabase
       .from("catches")
       .select("*, sessions(location)")
+      .eq("user_id", user?.id)
       .order("created_at", { ascending: false });
     setCatches(data || []);
   };
@@ -105,6 +107,14 @@ export default function CatchesPage() {
     if (gewässer) return gewässer;
     if (stelle) return stelle;
     return null;
+  };
+
+  const openInMaps = (lat: number, lon: number, fish: string) => {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const url = isIOS
+      ? `maps://maps.apple.com/?q=${encodeURIComponent(fish)}&ll=${lat},${lon}`
+      : `https://www.google.com/maps?q=${lat},${lon}`;
+    window.open(url, "_blank");
   };
 
   // Unique Werte für Filter
@@ -382,6 +392,15 @@ export default function CatchesPage() {
                     🗑️ Löschen
                   </button>
                 </div>
+
+                {c.latitude && c.longitude && (
+                  <button
+                    onClick={() => openInMaps(c.latitude, c.longitude, c.fish)}
+                    className="w-full bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 py-2 rounded-xl text-sm transition"
+                  >
+                    🗺️ In Maps öffnen
+                  </button>
+                )}
               </>
             )}
           </div>
