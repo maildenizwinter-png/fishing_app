@@ -16,10 +16,12 @@ export default function CatchesPage() {
   const [locationDetail, setLocationDetail] = useState("");
   const [waterTemp, setWaterTemp] = useState("");
   const [notes, setNotes] = useState("");
+  const [editTime, setEditTime] = useState("");
+  const [editLat, setEditLat] = useState("");
+  const [editLon, setEditLon] = useState("");
 
   const [galleryImage, setGalleryImage] = useState<string | null>(null);
 
-  // Filter States
   const [filterLocation, setFilterLocation] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
@@ -52,6 +54,15 @@ export default function CatchesPage() {
     } catch { return "-"; }
   };
 
+  const toLocalDatetimeString = (dateStr: string) => {
+    if (!dateStr) return "";
+    const d = new Date(dateStr.replace(" ", "T"));
+    if (isNaN(d.getTime())) return "";
+    const offset = d.getTimezoneOffset();
+    const local = new Date(d.getTime() - offset * 60000);
+    return local.toISOString().slice(0, 16);
+  };
+
   const handleFishChange = (value: string) => {
     setFish(value);
     setSubFish("");
@@ -75,6 +86,9 @@ export default function CatchesPage() {
     setLocationDetail(c.location_detail || "");
     setWaterTemp(c.water_temp?.toString() || "");
     setNotes(c.notes || "");
+    setEditTime(toLocalDatetimeString(c.created_at));
+    setEditLat(c.latitude?.toString() || "");
+    setEditLon(c.longitude?.toString() || "");
     handleFishChange(c.fish);
   };
 
@@ -89,6 +103,9 @@ export default function CatchesPage() {
       location_detail: locationDetail,
       water_temp: waterTemp ? Number(waterTemp) : null,
       notes,
+      created_at: editTime ? new Date(editTime).toISOString() : undefined,
+      latitude: editLat ? Number(editLat) : null,
+      longitude: editLon ? Number(editLon) : null,
     }).eq("id", id);
     setEditingId(null);
     load();
@@ -117,7 +134,6 @@ export default function CatchesPage() {
     window.open(url, "_blank");
   };
 
-  // Unique Werte für Filter
   const uniqueLocations = Array.from(
     new Set(catches.map((c) => c.sessions?.location).filter(Boolean))
   );
@@ -132,7 +148,6 @@ export default function CatchesPage() {
     new Set(catches.map((c) => c.fish).filter(Boolean))
   );
 
-  // Gefilterte Fänge
   const filtered = catches.filter((c) => {
     if (filterLocation && c.sessions?.location !== filterLocation) return false;
     if (filterStatus && c.status !== filterStatus) return false;
@@ -151,7 +166,6 @@ export default function CatchesPage() {
   return (
     <div className="p-4 max-w-xl mx-auto space-y-4">
 
-      {/* GALERIE MODAL */}
       {galleryImage && (
         <div
           className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
@@ -176,27 +190,16 @@ export default function CatchesPage() {
         <p className="text-gray-400 text-sm">{filtered.length} von {catches.length} Fängen</p>
       </div>
 
-      {/* FILTER */}
       <div className="bg-gray-800 rounded-2xl p-4 space-y-3">
         <p className="text-gray-400 text-xs uppercase tracking-wider">Filter</p>
 
         <div className="grid grid-cols-2 gap-2">
-          <select
-            value={filterLocation}
-            onChange={(e) => setFilterLocation(e.target.value)}
-            className={inputClass + " w-full"}
-          >
+          <select value={filterLocation} onChange={(e) => setFilterLocation(e.target.value)} className={inputClass + " w-full"}>
             <option value="">Alle Gewässer</option>
-            {uniqueLocations.map((loc) => (
-              <option key={loc} value={loc}>{loc}</option>
-            ))}
+            {uniqueLocations.map((loc) => <option key={loc} value={loc}>{loc}</option>)}
           </select>
 
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className={inputClass + " w-full"}
-          >
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className={inputClass + " w-full"}>
             <option value="">Alle Status</option>
             <option>Entnommen</option>
             <option>Zurückgesetzt</option>
@@ -204,26 +207,14 @@ export default function CatchesPage() {
         </div>
 
         <div className="grid grid-cols-2 gap-2">
-          <select
-            value={filterFish}
-            onChange={(e) => setFilterFish(e.target.value)}
-            className={inputClass + " w-full"}
-          >
+          <select value={filterFish} onChange={(e) => setFilterFish(e.target.value)} className={inputClass + " w-full"}>
             <option value="">Alle Fischarten</option>
-            {uniqueFish.map((f) => (
-              <option key={f} value={f}>{f}</option>
-            ))}
+            {uniqueFish.map((f) => <option key={f} value={f}>{f}</option>)}
           </select>
 
-          <select
-            value={filterMonth}
-            onChange={(e) => setFilterMonth(e.target.value)}
-            className={inputClass + " w-full"}
-          >
+          <select value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className={inputClass + " w-full"}>
             <option value="">Alle Monate</option>
-            {uniqueMonths.map((m) => (
-              <option key={m} value={m!}>{m}</option>
-            ))}
+            {uniqueMonths.map((m) => <option key={m} value={m!}>{m}</option>)}
           </select>
         </div>
 
@@ -256,79 +247,111 @@ export default function CatchesPage() {
           <div className="p-4 space-y-3">
             {editingId === c.id ? (
               <>
-                <select
-                  value={fish}
-                  onChange={(e) => handleFishChange(e.target.value)}
-                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2"
-                >
+                {/* Fischart */}
+                <select value={fish} onChange={(e) => handleFishChange(e.target.value)} className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2">
                   <option>Forelle</option>
                   <option>Karpfen</option>
                   <option>Äsche</option>
+                  <option>Bachsaibling</option>
+                  <option>Felchen</option>
                   <option>Hecht</option>
+                  <option>Wels</option>
                   <option>Zander</option>
                   <option>Barsch</option>
-                  <option>Wels</option>
+                  <option>Rapfen</option>
+                  <option>Schleie</option>
+                  <option>Brasse</option>
+                  <option>Rotauge</option>
+                  <option>Rotfeder</option>
+                  <option>Nase</option>
+                  <option>Barbe</option>
+                  <option>Döbel</option>
+                  <option>Maifisch</option>
+                  <option>Aal</option>
                   <option>Sonstiges</option>
                 </select>
 
                 {subFishOptions.length > 0 && (
-                  <select
-                    value={subFish}
-                    onChange={(e) => setSubFish(e.target.value)}
-                    className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2"
-                  >
+                  <select value={subFish} onChange={(e) => setSubFish(e.target.value)} className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2">
                     {subFishOptions.map((f) => <option key={f}>{f}</option>)}
                   </select>
                 )}
 
-                <input
-                  value={length}
-                  onChange={(e) => setLength(e.target.value)}
-                  placeholder="Länge cm"
-                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2"
-                />
+                <div className="grid grid-cols-2 gap-2">
+                  <input value={length} onChange={(e) => setLength(e.target.value)} placeholder="Länge cm" className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2" />
+                  <input value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="Gewicht g" className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2" />
+                </div>
 
-                <input
-                  value={weight}
-                  onChange={(e) => setWeight(e.target.value)}
-                  placeholder="Gewicht g"
-                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2"
-                />
+                <select value={method} onChange={(e) => setMethod(e.target.value)} className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2">
+                  <option value="">Angelart wählen</option>
+                  <option>Spinnfischen</option>
+                  <option>Grund</option>
+                  <option>Pose</option>
+                  <option>Fliege</option>
+                </select>
 
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2"
-                >
+                <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2">
                   <option>Entnommen</option>
                   <option>Zurückgesetzt</option>
                 </select>
 
-                <input
-                  value={locationDetail}
-                  onChange={(e) => setLocationDetail(e.target.value)}
-                  placeholder="Stelle (z.B. Unter der Brücke)"
-                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2"
-                />
+                <input value={locationDetail} onChange={(e) => setLocationDetail(e.target.value)} placeholder="Stelle (z.B. Unter der Brücke)" className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2" />
 
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Notizen"
-                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2"
-                />
+                <input value={waterTemp} onChange={(e) => setWaterTemp(e.target.value)} placeholder="Wassertemperatur °C" className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2" />
+
+                <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notizen" className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2" />
+
+                {/* Zeitpunkt */}
+                <div className="space-y-1">
+                  <p className="text-gray-400 text-xs">🕒 Zeitpunkt</p>
+                  <input
+                    type="datetime-local"
+                    value={editTime}
+                    onChange={(e) => setEditTime(e.target.value)}
+                    className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2"
+                  />
+                </div>
+
+                {/* GPS */}
+                <div className="space-y-1">
+                  <p className="text-gray-400 text-xs">📍 GPS Koordinaten</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      value={editLat}
+                      onChange={(e) => setEditLat(e.target.value)}
+                      placeholder="Breitengrad"
+                      type="number"
+                      step="any"
+                      className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2 text-sm"
+                    />
+                    <input
+                      value={editLon}
+                      onChange={(e) => setEditLon(e.target.value)}
+                      placeholder="Längengrad"
+                      type="number"
+                      step="any"
+                      className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2 text-sm"
+                    />
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (!navigator.geolocation) return;
+                      navigator.geolocation.getCurrentPosition((pos) => {
+                        setEditLat(pos.coords.latitude.toString());
+                        setEditLon(pos.coords.longitude.toString());
+                      });
+                    }}
+                    className="w-full bg-gray-600 hover:bg-gray-500 text-white py-2 rounded-xl text-sm transition"
+                  >
+                    📍 Aktuellen Standort verwenden
+                  </button>
+                </div>
 
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => saveEdit(c.id)}
-                    className="flex-1 bg-green-600 hover:bg-green-500 text-white py-2 rounded-xl transition"
-                  >
+                  <button onClick={() => saveEdit(c.id)} className="flex-1 bg-green-600 hover:bg-green-500 text-white py-2 rounded-xl transition">
                     💾 Speichern
                   </button>
-                  <button
-                    onClick={() => setEditingId(null)}
-                    className="flex-1 bg-gray-600 hover:bg-gray-500 text-white py-2 rounded-xl transition"
-                  >
+                  <button onClick={() => setEditingId(null)} className="flex-1 bg-gray-600 hover:bg-gray-500 text-white py-2 rounded-xl transition">
                     Abbrechen
                   </button>
                 </div>
@@ -339,11 +362,7 @@ export default function CatchesPage() {
                   <div>
                     <p className="text-white font-bold text-lg">
                       {c.fish || "-"}
-                      {c.sub_fish && (
-                        <span className="text-gray-400 font-normal text-sm ml-2">
-                          {c.sub_fish}
-                        </span>
-                      )}
+                      {c.sub_fish && <span className="text-gray-400 font-normal text-sm ml-2">{c.sub_fish}</span>}
                     </p>
                     <p className="text-gray-400 text-sm">
                       {c.length_cm ? `📏 ${c.length_cm} cm` : ""}
@@ -359,9 +378,7 @@ export default function CatchesPage() {
                   </span>
                 </div>
 
-                {getLocation(c) && (
-                  <p className="text-gray-400 text-sm">📍 {getLocation(c)}</p>
-                )}
+                {getLocation(c) && <p className="text-gray-400 text-sm">📍 {getLocation(c)}</p>}
 
                 <div className="flex flex-wrap gap-3 text-sm text-gray-400">
                   {c.method && <span>🎣 {c.method}</span>}
@@ -372,23 +389,19 @@ export default function CatchesPage() {
                   {c.weather && <span>🌦️ {c.weather}</span>}
                 </div>
 
-                {c.notes && (
-                  <p className="text-gray-500 text-sm italic">"{c.notes}"</p>
+                {c.latitude && c.longitude && (
+                  <p className="text-gray-600 text-xs">🛰️ {Number(c.latitude).toFixed(5)}, {Number(c.longitude).toFixed(5)}</p>
                 )}
+
+                {c.notes && <p className="text-gray-500 text-sm italic">"{c.notes}"</p>}
 
                 <p className="text-gray-600 text-xs">{formatTime(c.created_at)}</p>
 
                 <div className="flex gap-2 pt-1">
-                  <button
-                    onClick={() => startEdit(c)}
-                    className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-xl text-sm transition"
-                  >
+                  <button onClick={() => startEdit(c)} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-xl text-sm transition">
                     ✏️ Bearbeiten
                   </button>
-                  <button
-                    onClick={() => deleteCatch(c.id)}
-                    className="flex-1 bg-red-600/20 hover:bg-red-600/40 text-red-400 py-2 rounded-xl text-sm transition"
-                  >
+                  <button onClick={() => deleteCatch(c.id)} className="flex-1 bg-red-600/20 hover:bg-red-600/40 text-red-400 py-2 rounded-xl text-sm transition">
                     🗑️ Löschen
                   </button>
                 </div>
