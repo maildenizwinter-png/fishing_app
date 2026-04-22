@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
+import Link from "next/link";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -75,6 +76,15 @@ export default function LoginPage() {
           >
             {loading ? "⏳ Anmelden..." : "🔑 Anmelden"}
           </button>
+
+          <div className="text-center pt-2">
+            <p className="text-gray-500 text-sm">
+              Noch kein Account?{" "}
+              <Link href="/register" className="text-blue-400 hover:text-blue-300 transition">
+                Jetzt registrieren
+              </Link>
+            </p>
+          </div>
         </div>
 
       </div>
