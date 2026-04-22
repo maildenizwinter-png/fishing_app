@@ -15,6 +15,7 @@ export default function Home() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
 
   const touchStartY = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -72,6 +73,7 @@ useEffect(() => {
       window.location.href = "/login";
       return;
     }
+    setAuthChecked(true);
 
     const { data: profile } = await supabase
       .from("profiles")
@@ -208,6 +210,10 @@ useEffect(() => {
     if (min < 0) min = 0;
     return `${Math.floor(min / 60)}h ${min % 60}min`;
   };
+
+  if (!authChecked) {
+    return <div className="p-4 text-gray-400">Laden...</div>;
+  }
 
   return (
     <div
