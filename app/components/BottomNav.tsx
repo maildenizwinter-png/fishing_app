@@ -28,7 +28,6 @@ export default function BottomNav() {
     setIsAdmin(data?.role === "admin");
   };
 
-  // Nicht anzeigen auf Login und Register
   if (pathname === "/login" || pathname === "/register") return null;
 
   const tabs = [
@@ -39,7 +38,6 @@ export default function BottomNav() {
     { href: "/stats", label: "Stats", icon: "📊" },
   ];
 
-  // Nur wenn Admin und NICHT impersoniert: Admin-Tab statt Stats
   if (isAdmin && !impersonating) {
     tabs.push({ href: "/admin", label: "Admin", icon: "🛡️" });
   }
@@ -52,14 +50,14 @@ export default function BottomNav() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 flex z-50">
+    <nav className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 flex z-50 pb-4">
       {tabs.map((tab) => {
         const isActive = pathname === tab.href;
         return (
           <Link
             key={tab.href}
             href={tab.href}
-            className={`flex-1 flex flex-col items-center py-3 text-xs gap-1 transition-colors
+            className={`flex-1 flex flex-col items-center pt-2 pb-1 text-xs gap-1 transition-colors
               ${isActive ? "text-blue-400" : "text-gray-500 hover:text-gray-300"}`}
           >
             <span className="text-xl">{tab.icon}</span>
@@ -69,7 +67,7 @@ export default function BottomNav() {
       })}
       <button
         onClick={handleLogout}
-        className="flex-1 flex flex-col items-center py-3 text-xs gap-1 text-gray-500 hover:text-red-400 transition-colors"
+        className="flex-1 flex flex-col items-center pt-2 pb-1 text-xs gap-1 text-gray-500 hover:text-red-400 transition-colors"
       >
         <span className="text-xl">🚪</span>
         <span>Logout</span>

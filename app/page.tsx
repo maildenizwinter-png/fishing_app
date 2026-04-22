@@ -210,7 +210,7 @@ export default function Home() {
         transform: `translateY(${pullDistance}px)`,
         transition: pullDistance === 0 ? "transform 0.3s ease-out" : "none",
       }}
-      className="p-4 max-w-xl mx-auto space-y-6"
+      className="p-4 max-w-xl mx-auto space-y-3"
     >
 
       {(pullDistance > 0 || refreshing) && (
@@ -273,7 +273,7 @@ export default function Home() {
         <div className="bg-gray-800 rounded-2xl p-4 flex flex-col items-center gap-1">
           <span className="text-2xl">⏱️</span>
           <span className="text-sm font-bold text-white text-center leading-tight">{totalTime}</span>
-          <span className="text-xs text-gray-400 text-center">Zeit am Wasser</span>
+          <span className="text-xs text-gray-400 text-center">am Wasser</span>
         </div>
       </div>
 
@@ -337,7 +337,7 @@ export default function Home() {
       )}
 
       {!activeSession && lastCatch && (
-        <div className="bg-gray-800 rounded-2xl overflow-hidden mt-6">
+        <div className="bg-gray-800 rounded-2xl overflow-hidden">
           <div className="px-4 pt-4 pb-2">
             <p className="text-gray-400 text-xs uppercase tracking-wider">Letzter Fang</p>
           </div>
