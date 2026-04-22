@@ -101,7 +101,7 @@ export default function Home() {
       if (diffMinutes > 0 && diffMinutes < 24 * 60) totalMinutes += diffMinutes;
     });
 
-    setTotalTime(`${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}min`);
+    setTotalTime(`${Math.floor(totalMinutes / 60)}h`);
 
     const { data: catches } = await supabase
       .from("catches")
@@ -210,7 +210,7 @@ export default function Home() {
         transform: `translateY(${pullDistance}px)`,
         transition: pullDistance === 0 ? "transform 0.3s ease-out" : "none",
       }}
-      className="p-4 max-w-xl mx-auto space-y-3"
+      className="p-4 max-w-xl mx-auto flex flex-col gap-3"
     >
 
       {(pullDistance > 0 || refreshing) && (
