@@ -1,11 +1,32 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 
 export default function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [impersonating, setImpersonating] = useState(false);
+
+  useEffect(() => {
+    checkAdmin();
+    setImpersonating(!!localStorage.getItem("impersonateUserId"));
+  }, [pathname]);
+
+  const checkAdmin = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    setIsAdmin(data?.role === "admin");
+  };
 
   // Nicht anzeigen auf Login und Register
   if (pathname === "/login" || pathname === "/register") return null;
@@ -18,7 +39,14 @@ export default function BottomNav() {
     { href: "/stats", label: "Stats", icon: "📊" },
   ];
 
+  // Nur wenn Admin und NICHT impersoniert: Admin-Tab statt Stats
+  if (isAdmin && !impersonating) {
+    tabs.push({ href: "/admin", label: "Admin", icon: "🛡️" });
+  }
+
   const handleLogout = async () => {
+    localStorage.removeItem("impersonateUserId");
+    localStorage.removeItem("impersonateUserName");
     await supabase.auth.signOut();
     router.push("/login");
   };
