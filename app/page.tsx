@@ -21,8 +21,17 @@ export default function Home() {
 
   const currentYear = new Date().getFullYear();
 
-  useEffect(() => {
+useEffect(() => {
     loadData();
+
+    // Wenn Seite aus dem bfcache (z.B. Browser-Back) wiederhergestellt wird, neu laden
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        window.location.reload();
+      }
+    };
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
   }, []);
 
   const logWeather = async (sessionId: number) => {
