@@ -272,8 +272,8 @@ export default function Home() {
 
         <div className="bg-gray-800 rounded-2xl p-4 flex flex-col items-center gap-1">
           <span className="text-2xl">⏱️</span>
-          <span className="text-sm font-bold text-white text-center leading-tight">{totalTime}</span>
-          <span className="text-xs text-gray-400 text-center">am Wasser</span>
+          <span className="text-xl font-bold text-white">{totalTime}</span>
+          <span className="text-xs text-gray-400">am Wasser</span>
         </div>
       </div>
 
