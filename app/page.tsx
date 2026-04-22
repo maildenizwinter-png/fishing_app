@@ -12,6 +12,7 @@ export default function Home() {
   const [sessionCatches, setSessionCatches] = useState<any[]>([]);
   const [lastCatch, setLastCatch] = useState<any>(null);
   const [userName, setUserName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -65,7 +66,7 @@ export default function Home() {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("username, full_name")
+      .select("username, full_name, avatar_url")
       .eq("id", userId)
       .single();
 
@@ -76,6 +77,8 @@ export default function Home() {
     } else {
       setUserName("");
     }
+
+    setAvatarUrl(profile?.avatar_url || null);
 
     const { data: sessions } = await supabase
       .from("sessions")
@@ -236,9 +239,17 @@ export default function Home() {
           <div className="h-2" />
         </div>
         <Link href="/profile">
-          <div className="w-11 h-11 bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center transition">
-            <span className="text-white text-xl">👤</span>
-          </div>
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt="Profil"
+              className="w-11 h-11 rounded-full object-cover hover:opacity-80 transition border-2 border-gray-700"
+            />
+          ) : (
+            <div className="w-11 h-11 bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center transition">
+              <span className="text-white text-xl">👤</span>
+            </div>
+          )}
         </Link>
       </div>
 
