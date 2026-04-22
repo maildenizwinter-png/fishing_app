@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
+import { getUserFilter } from "../../lib/getUserId";
 import * as XLSX from "xlsx";
 import { useRouter } from "next/navigation";
 import {
@@ -16,26 +17,35 @@ export default function StatsPage() {
   const [sessions, setSessions] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAllUsers, setShowAllUsers] = useState(false);
 
   useEffect(() => {
     load();
   }, []);
 
   const load = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { router.push("/login"); return; }
+    const filter = await getUserFilter();
+    if (filter.mode === "user" && !filter.userId) { router.push("/login"); return; }
 
-    const { data: catchData } = await supabase
+    setShowAllUsers(filter.mode === "all");
+
+    let catchQuery = supabase
       .from("catches")
       .select("*, sessions(location, pressure)")
-      .eq("user_id", user.id)
       .order("created_at", { ascending: true });
 
-    const { data: sessionData } = await supabase
+    let sessionQuery = supabase
       .from("sessions")
       .select("*, catches(count)")
-      .eq("user_id", user.id)
       .order("start_time", { ascending: true });
+
+    if (filter.mode === "user") {
+      catchQuery = catchQuery.eq("user_id", filter.userId!);
+      sessionQuery = sessionQuery.eq("user_id", filter.userId!);
+    }
+
+    const { data: catchData } = await catchQuery;
+    const { data: sessionData } = await sessionQuery;
 
     const { data: logData } = await supabase
       .from("session_logs")
@@ -205,7 +215,10 @@ export default function StatsPage() {
 
       <div className="pt-4">
         <h1 className="text-2xl font-bold text-white">📊 Auswertung</h1>
-        <p className="text-gray-400 text-sm">{catches.length} Fänge gesamt</p>
+        <p className="text-gray-400 text-sm">
+          {catches.length} Fänge gesamt
+          {showAllUsers && <span className="text-yellow-400 ml-2">· 🛡️ Alle User</span>}
+        </p>
       </div>
 
       {/* Karten Button */}
