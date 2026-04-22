@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { getActiveUserId } from "../lib/getUserId";
 import Link from "next/link";
 
 export default function Home() {
@@ -56,9 +57,8 @@ export default function Home() {
   };
 
   const loadData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
+    const userId = await getActiveUserId();
+    if (!userId) {
       window.location.href = "/login";
       return;
     }
@@ -66,7 +66,7 @@ export default function Home() {
     const { data: profile } = await supabase
       .from("profiles")
       .select("username, full_name")
-      .eq("id", user.id)
+      .eq("id", userId)
       .single();
 
     if (profile?.username) {
@@ -74,13 +74,13 @@ export default function Home() {
     } else if (profile?.full_name) {
       setUserName(profile.full_name);
     } else {
-      setUserName(user.email?.split("@")[0] || "");
+      setUserName("");
     }
 
     const { data: sessions } = await supabase
       .from("sessions")
       .select("*")
-      .eq("user_id", user.id);
+      .eq("user_id", userId);
 
     if (!sessions) return;
 
@@ -103,7 +103,7 @@ export default function Home() {
     const { data: catches } = await supabase
       .from("catches")
       .select("*, sessions(location)")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
     if (catches) {
@@ -131,7 +131,6 @@ export default function Home() {
     }
   };
 
-  // Pull to Refresh Handler
   const handleTouchStart = (e: React.TouchEvent) => {
     if (window.scrollY === 0) {
       touchStartY.current = e.touches[0].clientY;
@@ -144,7 +143,6 @@ export default function Home() {
     if (touchStartY.current === null) return;
     const diff = e.touches[0].clientY - touchStartY.current;
     if (diff > 0 && window.scrollY === 0) {
-      // Nur nach unten ziehen, max 120px
       setPullDistance(Math.min(diff, 120));
     }
   };
@@ -212,7 +210,6 @@ export default function Home() {
       className="p-4 max-w-xl mx-auto space-y-6"
     >
 
-      {/* PULL TO REFRESH INDICATOR */}
       {(pullDistance > 0 || refreshing) && (
         <div
           className="absolute left-0 right-0 flex flex-col items-center justify-center text-gray-400 text-sm"
@@ -230,7 +227,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* HEADER */}
       <div className="pt-4 flex justify-between items-start">
         <div className="space-y-1">
           <p className="text-gray-400 text-sm">Willkommen zurück 👋</p>
@@ -246,7 +242,6 @@ export default function Home() {
         </Link>
       </div>
 
-      {/* STATS */}
       <div className="grid grid-cols-3 gap-3">
         <Link href="/catches">
           <div className="bg-gray-800 rounded-2xl p-4 flex flex-col items-center gap-1 hover:bg-gray-700 transition">
@@ -271,7 +266,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* AKTIVE SESSION oder START BUTTON */}
       {!activeSession ? (
         <Link href="/session">
           <div className="bg-green-600 hover:bg-green-500 transition rounded-2xl p-5 flex items-center justify-between shadow-lg">
@@ -331,7 +325,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* LETZTER FANG */}
       {!activeSession && lastCatch && (
         <div className="bg-gray-800 rounded-2xl overflow-hidden mt-6">
           <div className="px-4 pt-4 pb-2">
