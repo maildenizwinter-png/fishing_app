@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
+import { getUserFilter } from "../../lib/getUserId";
 
 export default function CatchesPage() {
   const [catches, setCatches] = useState<any[]>([]);
@@ -31,12 +32,19 @@ export default function CatchesPage() {
   const [filterFish, setFilterFish] = useState("");
 
   const load = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    const { data } = await supabase
+    const filter = await getUserFilter();
+
+    let query = supabase
       .from("catches")
       .select("*, sessions(location)")
-      .eq("user_id", user?.id)
       .order("created_at", { ascending: false });
+
+    if (filter.mode === "user") {
+      if (!filter.userId) return;
+      query = query.eq("user_id", filter.userId);
+    }
+
+    const { data } = await query;
     setCatches(data || []);
   };
 
