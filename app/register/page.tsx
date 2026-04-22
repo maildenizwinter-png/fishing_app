@@ -11,7 +11,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -20,7 +20,6 @@ export default function RegisterPage() {
       const type = params.get("type");
 
       if (tokenHash && type === "invite") {
-        // Einladungsmodus
         const { data, error } = await supabase.auth.verifyOtp({
           token_hash: tokenHash,
           type: "invite",
@@ -34,7 +33,6 @@ export default function RegisterPage() {
           setError("Session konnte nicht erstellt werden ❌");
         }
       } else {
-        // Selbst-Registrierungsmodus
         setMode("signup");
       }
     };
@@ -42,7 +40,6 @@ export default function RegisterPage() {
     checkSession();
   }, []);
 
-  // Einladungsmodus: Passwort für bestehenden User setzen
   const handleSetPassword = async () => {
     setLoading(true);
     setError("");
@@ -58,11 +55,9 @@ export default function RegisterPage() {
     router.push("/");
   };
 
-  // Selbst-Registrierung: Neuen User anlegen
   const handleSignUp = async () => {
     setLoading(true);
     setError("");
-    setSuccess("");
 
     if (password.length < 6) {
       setError("Passwort muss mindestens 6 Zeichen haben ❌");
@@ -81,17 +76,46 @@ export default function RegisterPage() {
       return;
     }
 
-    // Wenn Email-Bestätigung aktiv ist, kommt keine Session zurück
     if (data.session) {
-      // Kein Bestätigungsschritt nötig – direkt einloggen
       window.location.href = "/";
     } else {
-      setSuccess("✅ Registrierung erfolgreich! Bitte überprüfe deine E-Mails und bestätige deinen Account.");
+      setSuccess(true);
       setLoading(false);
     }
   };
 
   const inputClass = "w-full bg-gray-800 text-white border border-gray-700 rounded-xl p-3 placeholder-gray-600";
+
+  // ✨ BESTÄTIGUNGS-SEITE nach erfolgreicher Registrierung
+  if (success) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
+        <div className="w-full max-w-sm space-y-6">
+
+          <div className="flex flex-col items-center gap-4">
+            <img
+              src="/admin-avatar.jpg"
+              alt="Admin"
+              className="w-32 h-32 rounded-full object-cover border-4 border-gray-700 shadow-lg"
+            />
+            <h1 className="text-2xl font-bold text-white text-center">
+              Ausgezeichnet – jetzt nur noch bestätigen!
+            </h1>
+            <p className="text-green-400 text-sm text-center">
+              ✅ Registrierung erfolgreich! Bitte überprüfe deine E-Mails und bestätige deinen Account.
+            </p>
+          </div>
+
+          <div className="text-center pt-4">
+            <Link href="/login" className="text-blue-400 hover:text-blue-300 transition text-sm">
+              ← Zurück zum Login
+            </Link>
+          </div>
+
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
@@ -113,10 +137,6 @@ export default function RegisterPage() {
 
         {error && (
           <p className="text-red-400 text-sm text-center">{error}</p>
-        )}
-
-        {success && (
-          <p className="text-green-400 text-sm text-center">{success}</p>
         )}
 
         {/* EINLADUNGSMODUS */}
@@ -144,7 +164,7 @@ export default function RegisterPage() {
         )}
 
         {/* SELBST-REGISTRIERUNG */}
-        {mode === "signup" && !success && (
+        {mode === "signup" && (
           <div className="space-y-4">
             <div className="space-y-2">
               <label className="text-gray-400 text-sm">Email</label>
