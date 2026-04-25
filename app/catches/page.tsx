@@ -1,11 +1,17 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 import { getUserFilter } from "../../lib/getUserId";
 
 export default function CatchesPage() {
+  const searchParams = useSearchParams();
+  const highlightId = searchParams.get("id");
+
   const [catches, setCatches] = useState<any[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [highlightedId, setHighlightedId] = useState<number | null>(null);
+  const catchRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
 
   const [fish, setFish] = useState("");
   const [subFish, setSubFish] = useState("");
@@ -51,6 +57,21 @@ export default function CatchesPage() {
   useEffect(() => {
     load();
   }, []);
+
+  // Bei vorhandenem ?id= Parameter: zum Fang scrollen + highlighten
+  useEffect(() => {
+    if (highlightId && catches.length > 0) {
+      const id = Number(highlightId);
+      const el = catchRefs.current[id];
+      if (el) {
+        setTimeout(() => {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          setHighlightedId(id);
+          setTimeout(() => setHighlightedId(null), 3000);
+        }, 200);
+      }
+    }
+  }, [highlightId, catches]);
 
   const formatTime = (date: string) => {
     if (!date) return "-";
@@ -280,7 +301,13 @@ export default function CatchesPage() {
       )}
 
       {filtered.map((c: any) => (
-        <div key={c.id} className="bg-gray-800 rounded-2xl overflow-hidden">
+        <div
+          key={c.id}
+          ref={(el) => { catchRefs.current[c.id] = el; }}
+          className={`bg-gray-800 rounded-2xl overflow-hidden transition-all duration-500 ${
+            highlightedId === c.id ? "ring-4 ring-blue-500 shadow-lg shadow-blue-500/50" : ""
+          }`}
+        >
 
           {c.image_url && editingId !== c.id && (
             <img

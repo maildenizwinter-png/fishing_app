@@ -1,10 +1,8 @@
 "use client";
-import { useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-// Fix für Leaflet Marker Icons in Next.js
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
@@ -15,14 +13,10 @@ L.Icon.Default.mergeOptions({
 export default function MapView({ catches }: { catches: any[] }) {
   const center = catches.length > 0
     ? [catches[0].latitude, catches[0].longitude] as [number, number]
-    : [47.7, 9.6] as [number, number]; // Default: Bodenseeregion
+    : [47.7, 9.6] as [number, number];
 
-  const openInMaps = (lat: number, lon: number, fish: string) => {
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const url = isIOS
-      ? `maps://maps.apple.com/?q=${fish}&ll=${lat},${lon}`
-      : `https://www.google.com/maps?q=${lat},${lon}`;
-    window.open(url, "_blank");
+  const goToCatch = (id: number) => {
+    window.location.href = `/catches?id=${id}`;
   };
 
   return (
@@ -50,7 +44,7 @@ export default function MapView({ catches }: { catches: any[] }) {
               {c.status && <span>{c.status}</span>}
               <br />
               <button
-                onClick={() => openInMaps(c.latitude, c.longitude, c.fish)}
+                onClick={() => goToCatch(c.id)}
                 style={{
                   marginTop: "8px",
                   background: "#3b82f6",
@@ -62,7 +56,7 @@ export default function MapView({ catches }: { catches: any[] }) {
                   width: "100%",
                 }}
               >
-                In Maps öffnen 🗺️
+                Zum Fang →
               </button>
             </div>
           </Popup>
