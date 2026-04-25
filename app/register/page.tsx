@@ -9,6 +9,8 @@ export default function RegisterPage() {
   const [mode, setMode] = useState<"loading" | "invite" | "signup">("loading");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
+  const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -59,6 +61,12 @@ export default function RegisterPage() {
     setLoading(true);
     setError("");
 
+    if (!username.trim()) {
+      setError("Bitte gib einen Username an ❌");
+      setLoading(false);
+      return;
+    }
+
     if (password.length < 6) {
       setError("Passwort muss mindestens 6 Zeichen haben ❌");
       setLoading(false);
@@ -68,12 +76,29 @@ export default function RegisterPage() {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          username: username.trim(),
+          full_name: fullName.trim(),
+        },
+      },
     });
 
     if (error) {
       setError("Fehler: " + error.message);
       setLoading(false);
       return;
+    }
+
+    // Versuche Profil-Eintrag zu schreiben (falls Trigger das nicht schon macht)
+    if (data.user) {
+      await supabase.from("profiles").upsert({
+        id: data.user.id,
+        username: username.trim(),
+        full_name: fullName.trim(),
+        role: "user",
+        updated_at: new Date().toISOString(),
+      });
     }
 
     if (data.session) {
@@ -167,7 +192,29 @@ export default function RegisterPage() {
         {mode === "signup" && (
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-gray-400 text-sm">Email</label>
+              <label className="text-gray-400 text-sm">Username *</label>
+              <input
+                type="text"
+                placeholder="z.B. DerAngler"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-gray-400 text-sm">Vollständiger Name</label>
+              <input
+                type="text"
+                placeholder="z.B. Max Mustermann (optional)"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-gray-400 text-sm">Email *</label>
               <input
                 type="email"
                 placeholder="deine@email.de"
@@ -178,7 +225,7 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-gray-400 text-sm">Passwort</label>
+              <label className="text-gray-400 text-sm">Passwort *</label>
               <input
                 type="password"
                 placeholder="mind. 6 Zeichen"
@@ -190,7 +237,7 @@ export default function RegisterPage() {
 
             <button
               onClick={handleSignUp}
-              disabled={loading || !email || !password}
+              disabled={loading || !email || !password || !username}
               className="w-full bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-bold py-4 rounded-2xl text-lg transition"
             >
               {loading ? "⏳ Registrieren..." : "✅ Account erstellen"}
