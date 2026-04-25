@@ -1,10 +1,10 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 import { getUserFilter } from "../../lib/getUserId";
 
-export default function CatchesPage() {
+function CatchesContent() {
   const searchParams = useSearchParams();
   const highlightId = searchParams.get("id");
 
@@ -58,7 +58,6 @@ export default function CatchesPage() {
     load();
   }, []);
 
-  // Bei vorhandenem ?id= Parameter: zum Fang scrollen + highlighten
   useEffect(() => {
     if (highlightId && catches.length > 0) {
       const id = Number(highlightId);
@@ -490,5 +489,13 @@ export default function CatchesPage() {
         </div>
       ))}
     </div>
+  );
+}
+
+export default function CatchesPage() {
+  return (
+    <Suspense fallback={<div className="p-4 text-gray-400">Laden...</div>}>
+      <CatchesContent />
+    </Suspense>
   );
 }
