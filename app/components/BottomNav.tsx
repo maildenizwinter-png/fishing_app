@@ -45,6 +45,8 @@ export default function BottomNav() {
   const handleLogout = async () => {
     localStorage.removeItem("impersonateUserId");
     localStorage.removeItem("impersonateUserName");
+    window.dispatchEvent(new Event("impersonation-change"));
+    setImpersonating(false);
     await supabase.auth.signOut();
     router.push("/login");
   };

@@ -1,18 +1,55 @@
 "use client";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { supabase } from "../../lib/supabaseClient";
 
 export default function ImpersonateBanner() {
   const router = useRouter();
+  const pathname = usePathname();
   const [userName, setUserName] = useState<string | null>(null);
 
+  const refresh = useCallback(async () => {
+    // Kein Banner auf Login/Register
+    if (pathname === "/login" || pathname === "/register") {
+      setUserName(null);
+      return;
+    }
+
+    const name = localStorage.getItem("impersonateUserName");
+    if (!name) {
+      setUserName(null);
+      return;
+    }
+
+    // Nur zeigen wenn wirklich eine Session existiert – sonst verwaiste Keys entfernen
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      localStorage.removeItem("impersonateUserId");
+      localStorage.removeItem("impersonateUserName");
+      setUserName(null);
+      return;
+    }
+
+    setUserName(name);
+  }, [pathname]);
+
   useEffect(() => {
-    setUserName(localStorage.getItem("impersonateUserName"));
-  }, []);
+    refresh();
+    const onChange = () => refresh();
+    // Custom-Event (gleicher Tab) + storage-Event (anderer Tab)
+    window.addEventListener("impersonation-change", onChange);
+    window.addEventListener("storage", onChange);
+    return () => {
+      window.removeEventListener("impersonation-change", onChange);
+      window.removeEventListener("storage", onChange);
+    };
+  }, [refresh]);
 
   const stopImpersonation = () => {
     localStorage.removeItem("impersonateUserId");
     localStorage.removeItem("impersonateUserName");
+    window.dispatchEvent(new Event("impersonation-change"));
+    setUserName(null);
     router.push("/admin");
   };
 

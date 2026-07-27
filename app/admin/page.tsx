@@ -60,6 +60,7 @@ export default function AdminPage() {
   const impersonateUser = (userId: string, userName: string) => {
     localStorage.setItem("impersonateUserId", userId);
     localStorage.setItem("impersonateUserName", userName);
+    window.dispatchEvent(new Event("impersonation-change"));
     router.push("/");
   };
 
