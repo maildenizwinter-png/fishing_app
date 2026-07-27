@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Fish } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -132,7 +133,7 @@ export default function RegisterPage() {
           </div>
 
           <div className="text-center pt-4">
-            <Link href="/login" className="text-blue-400 hover:text-blue-300 transition text-sm">
+            <Link href="/login" className="text-teal-400 hover:text-teal-300 transition text-sm">
               ← Zurück zum Login
             </Link>
           </div>
@@ -146,9 +147,11 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-6">
 
-        <div className="text-center space-y-2">
-          <p className="text-5xl">🎣</p>
-          <h1 className="text-2xl font-bold text-white">
+        <div className="text-center space-y-3">
+          <div className="w-14 h-14 rounded-2xl bg-teal-500/10 flex items-center justify-center mx-auto">
+            <Fish className="w-7 h-7 text-teal-400" strokeWidth={1.75} />
+          </div>
+          <h1 className="text-2xl font-semibold text-white tracking-tight">
             {mode === "invite" ? "Willkommen!" : "Registrieren"}
           </h1>
           <p className="text-gray-400 text-sm">
@@ -181,9 +184,9 @@ export default function RegisterPage() {
             <button
               onClick={handleSetPassword}
               disabled={loading}
-              className="w-full bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-bold py-4 rounded-2xl text-lg transition"
+              className="w-full bg-teal-600 hover:bg-teal-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-semibold py-4 rounded-2xl text-lg transition"
             >
-              {loading ? "⏳ Wird gespeichert..." : "✅ Passwort festlegen"}
+              {loading ? "Wird gespeichert…" : "Passwort festlegen"}
             </button>
           </div>
         )}
@@ -238,15 +241,15 @@ export default function RegisterPage() {
             <button
               onClick={handleSignUp}
               disabled={loading || !email || !password || !username}
-              className="w-full bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-bold py-4 rounded-2xl text-lg transition"
+              className="w-full bg-teal-600 hover:bg-teal-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-semibold py-4 rounded-2xl text-lg transition"
             >
-              {loading ? "⏳ Registrieren..." : "✅ Account erstellen"}
+              {loading ? "Registrieren…" : "Account erstellen"}
             </button>
 
             <div className="text-center pt-2">
               <p className="text-gray-500 text-sm">
                 Bereits registriert?{" "}
-                <Link href="/login" className="text-blue-400 hover:text-blue-300 transition">
+                <Link href="/login" className="text-teal-400 hover:text-teal-300 transition">
                   Anmelden
                 </Link>
               </p>

@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import Link from "next/link";
+import { Waves, User, Clock, Fish, Cloud, Thermometer, Pencil, Trash2, Save, MapPin, Flag } from "lucide-react";
 
 export default function SessionsPage() {
   const [sessions, setSessions] = useState<any[]>([]);
@@ -74,31 +75,37 @@ export default function SessionsPage() {
 
   const deleteSession = async (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm("Session löschen?\n\n⚠️ Alle Fänge und Wetterdaten werden mit gelöscht!\n\nWirklich alles löschen?")) return;
+    if (!confirm("Session löschen?\n\nAlle Fänge und Wetterdaten werden mit gelöscht!\n\nWirklich alles löschen?")) return;
     await supabase.from("sessions").delete().eq("id", id);
     loadSessions();
   };
 
+  const editInput = "w-full bg-gray-800 text-white border border-gray-700 rounded-xl px-3 py-2.5 focus:border-teal-500 focus:outline-none transition";
+
   return (
     <div className="p-4 max-w-xl mx-auto space-y-4">
 
-      <div className="pt-4">
-        <h1 className="text-2xl font-bold text-white">🎣 Angelzeiten</h1>
-        <p className="text-gray-400 text-sm">{sessions.length} Sessions gesamt</p>
+      <div className="pt-4 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center shrink-0">
+          <Waves className="w-5 h-5 text-teal-400" strokeWidth={1.75} />
+        </div>
+        <div>
+          <h1 className="text-2xl font-semibold text-white tracking-tight">Angelzeiten</h1>
+          <p className="text-gray-400 text-sm">{sessions.length} Sessions gesamt</p>
+        </div>
       </div>
 
       {sessions.map((s) => (
-        <div key={s.id} className="bg-gray-800 rounded-2xl p-4 space-y-3">
+        <div key={s.id} className="bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-3">
 
           {editingId === s.id ? (
             <>
-              {/* Gewässer */}
-              <div className="space-y-1">
-                <p className="text-gray-400 text-xs">📍 Gewässer</p>
+              <div className="space-y-1.5">
+                <p className="text-gray-500 text-xs px-1">Gewässer</p>
                 <select
                   value={editLocation}
                   onChange={(e) => setEditLocation(e.target.value)}
-                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2"
+                  className={editInput}
                 >
                   <option>Obere Argen</option>
                   <option>Doppelargen</option>
@@ -106,49 +113,46 @@ export default function SessionsPage() {
                 </select>
               </div>
 
-              {/* Begleiter */}
-              <div className="space-y-1">
-                <p className="text-gray-400 text-xs">👤 Begleiter</p>
+              <div className="space-y-1.5">
+                <p className="text-gray-500 text-xs px-1">Begleiter</p>
                 <input
                   value={editCompanion}
                   onChange={(e) => setEditCompanion(e.target.value)}
-                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2"
+                  className={editInput}
                   placeholder="Begleiter (optional)"
                 />
               </div>
 
-              {/* Startzeit */}
-              <div className="space-y-1">
-                <p className="text-gray-400 text-xs">🕒 Startzeit</p>
+              <div className="space-y-1.5">
+                <p className="text-gray-500 text-xs px-1">Startzeit</p>
                 <input
                   type="datetime-local"
                   value={editStartTime}
                   onChange={(e) => setEditStartTime(e.target.value)}
-                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2"
+                  className={editInput}
                 />
               </div>
 
-              {/* Endzeit */}
-              <div className="space-y-1">
-                <p className="text-gray-400 text-xs">🛑 Endzeit (optional)</p>
+              <div className="space-y-1.5">
+                <p className="text-gray-500 text-xs px-1">Endzeit · optional</p>
                 <input
                   type="datetime-local"
                   value={editEndTime}
                   onChange={(e) => setEditEndTime(e.target.value)}
-                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2"
+                  className={editInput}
                 />
               </div>
 
               <div className="flex gap-2">
                 <button
                   onClick={() => saveEdit(s.id)}
-                  className="flex-1 bg-green-600 hover:bg-green-500 text-white py-2 rounded-xl transition"
+                  className="flex-1 bg-teal-600 hover:bg-teal-500 text-white py-2 rounded-xl transition flex items-center justify-center gap-2"
                 >
-                  💾 Speichern
+                  <Save className="w-4 h-4" /> Speichern
                 </button>
                 <button
                   onClick={() => setEditingId(null)}
-                  className="flex-1 bg-gray-600 hover:bg-gray-500 text-white py-2 rounded-xl transition"
+                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-xl transition"
                 >
                   Abbrechen
                 </button>
@@ -160,25 +164,25 @@ export default function SessionsPage() {
                 <div className="space-y-2">
                   <div className="flex justify-between items-start">
                     <div>
-                      <p className="text-white font-bold text-lg">{s.location || "-"}</p>
-                      <p className="text-gray-400 text-sm">👤 {s.companion || "Alleine"}</p>
+                      <p className="text-white font-semibold text-lg">{s.location || "-"}</p>
+                      <p className="text-gray-400 text-sm flex items-center gap-1.5"><User className="w-3.5 h-3.5" strokeWidth={1.75} /> {s.companion || "Alleine"}</p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-gray-500 text-xs">⏱️ {formatDuration(s.start_time, s.end_time)}</p>
+                    <div className="flex flex-col items-end gap-1">
+                      <p className="text-gray-500 text-xs flex items-center gap-1"><Clock className="w-3.5 h-3.5" strokeWidth={1.75} /> {formatDuration(s.start_time, s.end_time)}</p>
                       {s.catches?.[0]?.count > 0 && (
-                        <p className="text-blue-400 text-xs">🐟 {s.catches[0].count} Fang/Fänge</p>
+                        <p className="text-teal-400 text-xs flex items-center gap-1"><Fish className="w-3.5 h-3.5" strokeWidth={1.75} /> {s.catches[0].count} Fang/Fänge</p>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex gap-3 text-xs text-gray-400">
-                    <span>🕒 {formatTime(s.start_time)}</span>
-                    {s.end_time && <span>🛑 {formatTime(s.end_time)}</span>}
+                  <div className="flex gap-4 text-xs text-gray-400">
+                    <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" strokeWidth={1.75} /> {formatTime(s.start_time)}</span>
+                    {s.end_time && <span className="flex items-center gap-1"><Flag className="w-3.5 h-3.5" strokeWidth={1.75} /> {formatTime(s.end_time)}</span>}
                   </div>
 
-                  <div className="flex gap-3 text-sm text-gray-400">
-                    {s.weather && <span>🌦️ {s.weather}</span>}
-                    {s.temperature && <span>🌡️ {s.temperature}°C</span>}
+                  <div className="flex gap-4 text-sm text-gray-400">
+                    {s.weather && <span className="flex items-center gap-1"><Cloud className="w-3.5 h-3.5" strokeWidth={1.75} /> {s.weather}</span>}
+                    {s.temperature && <span className="flex items-center gap-1"><Thermometer className="w-3.5 h-3.5" strokeWidth={1.75} /> {s.temperature}°C</span>}
                   </div>
                 </div>
               </Link>
@@ -186,15 +190,15 @@ export default function SessionsPage() {
               <div className="flex gap-2 pt-1">
                 <button
                   onClick={(e) => startEdit(s, e)}
-                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-xl text-sm transition"
+                  className="flex-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 py-2 rounded-xl text-sm transition flex items-center justify-center gap-2"
                 >
-                  ✏️ Bearbeiten
+                  <Pencil className="w-4 h-4" /> Bearbeiten
                 </button>
                 <button
                   onClick={(e) => deleteSession(s.id, e)}
-                  className="flex-1 bg-red-600/20 hover:bg-red-600/40 text-red-400 py-2 rounded-xl text-sm transition"
+                  className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 py-2 rounded-xl text-sm transition flex items-center justify-center gap-2"
                 >
-                  🗑️ Löschen
+                  <Trash2 className="w-4 h-4" /> Löschen
                 </button>
               </div>
             </>

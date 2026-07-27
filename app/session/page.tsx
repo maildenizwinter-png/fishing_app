@@ -2,6 +2,7 @@
 import { useState, useRef } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { Waves, Play, CalendarPlus, MapPin, Cloud, RefreshCw, Fish, Save } from "lucide-react";
 
 export default function SessionPage() {
   const [location, setLocation] = useState("");
@@ -104,66 +105,64 @@ export default function SessionPage() {
     router.push("/");
   };
 
-  const inputClass = "w-full bg-gray-800 text-white border border-gray-700 rounded-xl p-3 placeholder-gray-600";
-  const labelClass = "text-gray-400 text-sm";
+  const inputClass = "w-full bg-gray-800 text-white border border-gray-700 rounded-xl px-4 py-3.5 text-[15px] placeholder-gray-500 focus:border-teal-500 focus:outline-none transition";
 
   return (
-    <div className="p-4 max-w-xl mx-auto space-y-6">
+    <div className="p-4 max-w-xl mx-auto space-y-4">
 
-      <div className="pt-4">
-        <h1 className="text-2xl font-bold text-white">🎣 Neue Session</h1>
-        <p className="text-gray-400 text-sm">Angelzeit erfassen</p>
+      <div className="pt-4 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center shrink-0">
+          <Waves className="w-5 h-5 text-teal-400" strokeWidth={1.75} />
+        </div>
+        <div>
+          <h1 className="text-2xl font-semibold text-white tracking-tight">Neue Session</h1>
+          <p className="text-gray-400 text-sm">Angelzeit erfassen</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
         <button
           onClick={() => setMode("now")}
-          className={`py-3 rounded-xl font-semibold transition ${
-            mode === "now" ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400"
+          className={`py-3.5 rounded-xl font-medium transition flex items-center justify-center gap-2 ${
+            mode === "now" ? "bg-teal-600 text-white" : "bg-gray-800 text-gray-400 border border-gray-700"
           }`}
         >
-          ▶️ Jetzt starten
+          <Play className="w-4 h-4" /> Jetzt starten
         </button>
         <button
           onClick={() => setMode("manual")}
-          className={`py-3 rounded-xl font-semibold transition ${
-            mode === "manual" ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400"
+          className={`py-3.5 rounded-xl font-medium transition flex items-center justify-center gap-2 ${
+            mode === "manual" ? "bg-teal-600 text-white" : "bg-gray-800 text-gray-400 border border-gray-700"
           }`}
         >
-          📅 Nachtragen
+          <CalendarPlus className="w-4 h-4" /> Nachtragen
         </button>
       </div>
 
-      <div className="space-y-2">
-        <label className={labelClass}>Gewässer</label>
-        <input
-          list="gewässer-list"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          placeholder="Gewässer wählen oder eingeben"
-          className={inputClass}
-        />
-        <datalist id="gewässer-list">
-          <option value="Obere Argen" />
-          <option value="Doppelargen" />
-          <option value="Weiher Neuravensburg" />
-        </datalist>
-      </div>
+      <input
+        list="gewässer-list"
+        value={location}
+        onChange={(e) => setLocation(e.target.value)}
+        placeholder="Gewässer wählen oder eingeben"
+        className={inputClass}
+      />
+      <datalist id="gewässer-list">
+        <option value="Obere Argen" />
+        <option value="Doppelargen" />
+        <option value="Weiher Neuravensburg" />
+      </datalist>
 
-      <div className="space-y-2">
-        <label className={labelClass}>Begleiter (optional)</label>
-        <input
-          value={companion}
-          placeholder="z.B. R2-D2 & C-3PO"
-          onChange={(e) => setCompanion(e.target.value)}
-          className={inputClass}
-        />
-      </div>
+      <input
+        value={companion}
+        placeholder="Begleiter (optional)"
+        onChange={(e) => setCompanion(e.target.value)}
+        className={inputClass}
+      />
 
       {mode === "manual" && (
         <div className="space-y-4">
-          <div className="space-y-2">
-            <label className={labelClass}>Startzeit</label>
+          <div className="space-y-1.5">
+            <label className="text-gray-500 text-xs px-1">Startzeit</label>
             <input
               type="datetime-local"
               value={manualStart}
@@ -171,8 +170,8 @@ export default function SessionPage() {
               className={inputClass}
             />
           </div>
-          <div className="space-y-2">
-            <label className={labelClass}>Endzeit (optional)</label>
+          <div className="space-y-1.5">
+            <label className="text-gray-500 text-xs px-1">Endzeit · optional</label>
             <input
               type="datetime-local"
               value={manualEnd}
@@ -184,27 +183,28 @@ export default function SessionPage() {
       )}
 
       {mode === "now" && (
-        <div className="bg-gray-800 rounded-2xl p-4 space-y-2 text-sm text-gray-400">
-          <p>📍 GPS wird automatisch erfasst</p>
-          <p>🌦️ Wetter wird automatisch geladen</p>
-          <p>🔁 Tracking alle 30 Sekunden</p>
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-2.5 text-sm text-gray-400">
+          <p className="flex items-center gap-2"><MapPin className="w-4 h-4 text-gray-500" strokeWidth={1.75} /> GPS wird automatisch erfasst</p>
+          <p className="flex items-center gap-2"><Cloud className="w-4 h-4 text-gray-500" strokeWidth={1.75} /> Wetter wird automatisch geladen</p>
+          <p className="flex items-center gap-2"><RefreshCw className="w-4 h-4 text-gray-500" strokeWidth={1.75} /> Tracking alle 30 Sekunden</p>
         </div>
       )}
 
       {mode === "manual" && (
-        <div className="bg-gray-800 rounded-2xl p-4 space-y-2 text-sm text-gray-400">
-          <p>📅 Session wird nachträglich erfasst</p>
-          <p>🐟 Fänge kannst du danach eintragen</p>
-          <p>🌦️ Kein automatisches Wetter-Tracking</p>
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-2.5 text-sm text-gray-400">
+          <p className="flex items-center gap-2"><CalendarPlus className="w-4 h-4 text-gray-500" strokeWidth={1.75} /> Session wird nachträglich erfasst</p>
+          <p className="flex items-center gap-2"><Fish className="w-4 h-4 text-gray-500" strokeWidth={1.75} /> Fänge kannst du danach eintragen</p>
+          <p className="flex items-center gap-2"><Cloud className="w-4 h-4 text-gray-500" strokeWidth={1.75} /> Kein automatisches Wetter-Tracking</p>
         </div>
       )}
 
       <button
         onClick={startSession}
         disabled={loading}
-        className="w-full bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-bold py-4 rounded-2xl text-lg transition"
+        className="w-full bg-teal-600 hover:bg-teal-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-semibold py-4 rounded-2xl text-lg transition flex items-center justify-center gap-2"
       >
-        {loading ? "⏳ Wird gespeichert..." : mode === "now" ? "▶️ Session starten" : "💾 Session speichern"}
+        {mode === "now" ? <Play className="w-5 h-5" /> : <Save className="w-5 h-5" />}
+        {loading ? "Wird gespeichert…" : mode === "now" ? "Session starten" : "Session speichern"}
       </button>
 
     </div>

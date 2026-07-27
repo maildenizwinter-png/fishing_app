@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { ArrowLeft, User, Camera, X, Save, Lock, Mail } from "lucide-react";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -157,9 +158,9 @@ export default function ProfilePage() {
       <div className="pt-4 flex items-center gap-3">
         <button
           onClick={() => router.back()}
-          className="text-gray-400 hover:text-white transition"
+          className="text-gray-400 hover:text-white transition flex items-center gap-1"
         >
-          ← Zurück
+          <ArrowLeft className="w-5 h-5" /> Zurück
         </button>
       </div>
 
@@ -173,12 +174,12 @@ export default function ProfilePage() {
               className="w-24 h-24 rounded-full object-cover border-2 border-gray-700"
             />
           ) : (
-            <div className="w-24 h-24 bg-gray-700 rounded-full flex items-center justify-center text-4xl">
-              👤
+            <div className="w-24 h-24 bg-gray-800 ring-1 ring-gray-700 rounded-full flex items-center justify-center">
+              <User className="w-10 h-10 text-gray-400" strokeWidth={1.5} />
             </div>
           )}
-          <label className="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-500 rounded-full w-8 h-8 flex items-center justify-center cursor-pointer transition">
-            <span className="text-sm">📸</span>
+          <label className="absolute bottom-0 right-0 bg-teal-600 hover:bg-teal-500 rounded-full w-8 h-8 flex items-center justify-center cursor-pointer transition">
+            <Camera className="w-4 h-4 text-white" strokeWidth={1.75} />
             <input
               type="file"
               accept="image/*"
@@ -188,14 +189,14 @@ export default function ProfilePage() {
           </label>
         </div>
 
-        {uploading && <p className="text-gray-400 text-sm">⏳ Wird hochgeladen...</p>}
+        {uploading && <p className="text-gray-400 text-sm">Wird hochgeladen…</p>}
 
         {avatarUrl && !uploading && (
           <button
             onClick={removeAvatar}
-            className="text-red-400 text-xs hover:text-red-300 transition"
+            className="text-red-400 text-xs hover:text-red-300 transition flex items-center gap-1"
           >
-            ✕ Bild entfernen
+            <X className="w-3.5 h-3.5" /> Bild entfernen
           </button>
         )}
 
@@ -232,14 +233,14 @@ export default function ProfilePage() {
       <button
         onClick={saveProfile}
         disabled={saving}
-        className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-bold py-4 rounded-2xl text-lg transition"
+        className="w-full bg-teal-600 hover:bg-teal-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-semibold py-4 rounded-2xl text-lg transition flex items-center justify-center gap-2"
       >
-        {saving ? "⏳ Wird gespeichert..." : "💾 Profil speichern"}
+        <Save className="w-5 h-5" /> {saving ? "Wird gespeichert…" : "Profil speichern"}
       </button>
 
       {/* PASSWORT RESET */}
-      <div className="bg-gray-800 rounded-2xl p-4 space-y-3">
-        <p className="text-gray-400 text-xs uppercase tracking-wider">🔒 Sicherheit</p>
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-3">
+        <p className="text-gray-500 text-xs uppercase tracking-wider flex items-center gap-1.5"><Lock className="w-3.5 h-3.5" /> Sicherheit</p>
         <p className="text-gray-400 text-sm">
           Du möchtest dein Passwort ändern? Wir senden dir eine E-Mail mit einem Link zum Zurücksetzen.
         </p>
@@ -247,9 +248,9 @@ export default function ProfilePage() {
         <button
           onClick={requestPasswordReset}
           disabled={resetLoading}
-          className="w-full bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 text-white py-3 rounded-xl transition"
+          className="w-full bg-gray-800 hover:bg-gray-700 border border-gray-700 disabled:bg-gray-800 text-white py-3 rounded-xl transition flex items-center justify-center gap-2"
         >
-          {resetLoading ? "⏳ Wird gesendet..." : "📧 Neues Passwort anfordern"}
+          <Mail className="w-4 h-4" /> {resetLoading ? "Wird gesendet…" : "Neues Passwort anfordern"}
         </button>
 
         {resetMessage && (

@@ -5,6 +5,10 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
+  ArrowLeft, X, User, Clock, Flag, Cloud, Thermometer, Wind, Map,
+  ChevronUp, ChevronDown, Fish, Plus, Ruler, Scale, Droplet,
+} from "lucide-react";
+import {
   LineChart, Line, XAxis, YAxis, Tooltip,
   ResponsiveContainer
 } from "recharts";
@@ -130,7 +134,7 @@ export default function SessionDetailPage() {
     if (payload.fang) {
       return (
         <g>
-          <circle cx={cx} cy={cy} r={8} fill="#3b82f6" stroke="#fff" strokeWidth={2} />
+          <circle cx={cx} cy={cy} r={8} fill="#14b8a6" stroke="#fff" strokeWidth={2} />
           <text x={cx} y={cy - 14} textAnchor="middle" fill="#fff" fontSize={12}>🐟</text>
         </g>
       );
@@ -147,7 +151,7 @@ export default function SessionDetailPage() {
           <p className="text-white font-bold">
             {d.wert} {chartMode === "druck" ? "hPa" : "°C"}
           </p>
-          {d.fang && <p className="text-blue-400">🐟 {d.fang}</p>}
+          {d.fang && <p className="text-teal-400">🐟 {d.fang}</p>}
         </div>
       );
     }
@@ -171,38 +175,38 @@ export default function SessionDetailPage() {
         >
           <img src={galleryImage} alt="Fang" className="max-w-full max-h-full rounded-2xl object-contain" />
           <button
-            className="absolute top-4 right-4 bg-gray-800 text-white rounded-full w-10 h-10 flex items-center justify-center text-xl"
+            className="absolute top-4 right-4 bg-gray-800 text-white rounded-full w-10 h-10 flex items-center justify-center"
             onClick={() => setGalleryImage(null)}
-          >✕</button>
+          ><X className="w-5 h-5" /></button>
         </div>
       )}
 
       {/* ZURÜCK */}
       <div className="pt-4 flex items-center gap-3">
-        <button onClick={() => router.back()} className="text-gray-400 hover:text-white transition">
-          ← Zurück
+        <button onClick={() => router.back()} className="text-gray-400 hover:text-white transition flex items-center gap-1">
+          <ArrowLeft className="w-5 h-5" /> Zurück
         </button>
       </div>
 
       {/* SESSION INFO */}
-      <div className="bg-gray-800 rounded-2xl p-4 space-y-3">
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-3">
         <div className="flex justify-between items-start">
           <div>
-            <p className="text-white font-bold text-xl">{session.location}</p>
-            <p className="text-gray-400 text-sm">👤 {session.companion || "Alleine"}</p>
+            <p className="text-white font-semibold text-xl">{session.location}</p>
+            <p className="text-gray-400 text-sm flex items-center gap-1.5"><User className="w-4 h-4" strokeWidth={1.75} /> {session.companion || "Alleine"}</p>
           </div>
-          <span className="text-gray-400 text-sm">⏱️ {formatDuration(session.start_time, session.end_time)}</span>
+          <span className="text-gray-400 text-sm flex items-center gap-1"><Clock className="w-4 h-4" strokeWidth={1.75} /> {formatDuration(session.start_time, session.end_time)}</span>
         </div>
 
-        <div className="flex gap-3 text-xs text-gray-400">
-          <span>🕒 Start: {formatTime(session.start_time)}</span>
-          {session.end_time && <span>🛑 Ende: {formatTime(session.end_time)}</span>}
+        <div className="flex gap-4 text-xs text-gray-400">
+          <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" strokeWidth={1.75} /> Start: {formatTime(session.start_time)}</span>
+          {session.end_time && <span className="flex items-center gap-1"><Flag className="w-3.5 h-3.5" strokeWidth={1.75} /> Ende: {formatTime(session.end_time)}</span>}
         </div>
 
-        <div className="flex flex-wrap gap-3 text-sm text-gray-400">
-          {session.weather && <span>🌦️ {session.weather}</span>}
-          {session.temperature && <span>🌡️ {session.temperature}°C</span>}
-          {session.pressure && <span>💨 {session.pressure} hPa</span>}
+        <div className="flex flex-wrap gap-4 text-sm text-gray-400">
+          {session.weather && <span className="flex items-center gap-1"><Cloud className="w-3.5 h-3.5" strokeWidth={1.75} /> {session.weather}</span>}
+          {session.temperature && <span className="flex items-center gap-1"><Thermometer className="w-3.5 h-3.5" strokeWidth={1.75} /> {session.temperature}°C</span>}
+          {session.pressure && <span className="flex items-center gap-1"><Wind className="w-3.5 h-3.5" strokeWidth={1.75} /> {session.pressure} hPa</span>}
         </div>
       </div>
 
@@ -210,13 +214,16 @@ export default function SessionDetailPage() {
       {hasMapData && (
         <button
           onClick={() => setShowMap(!showMap)}
-          className="w-full bg-blue-600 hover:bg-blue-500 transition rounded-2xl p-4 flex items-center justify-between"
+          className="w-full bg-teal-600 hover:bg-teal-500 transition rounded-2xl p-4 flex items-center justify-between"
         >
-          <div>
-            <p className="text-white font-bold">🗺️ Kartenansicht</p>
-            <p className="text-blue-200 text-sm">Start, Fänge und Ende auf der Karte</p>
+          <div className="flex items-center gap-3">
+            <Map className="w-5 h-5 text-white" strokeWidth={1.75} />
+            <div className="text-left">
+              <p className="text-white font-semibold">Kartenansicht</p>
+              <p className="text-teal-100/80 text-sm">Start, Fänge und Ende auf der Karte</p>
+            </div>
           </div>
-          <span className="text-white text-xl">{showMap ? "▲" : "▼"}</span>
+          {showMap ? <ChevronUp className="w-5 h-5 text-white" /> : <ChevronDown className="w-5 h-5 text-white" />}
         </button>
       )}
 
@@ -229,30 +236,30 @@ export default function SessionDetailPage() {
 
       {/* VERLAUF CHART mit Toggle */}
       {chartData.length > 1 && (
-        <div className="bg-gray-800 rounded-2xl p-4 space-y-3">
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-3">
 
           {/* Toggle Header */}
           <div className="flex items-center gap-3">
             <button
               onClick={() => setChartMode("druck")}
-              className={`font-bold text-base transition ${
-                chartMode === "druck" ? "text-yellow-400" : "text-gray-500 hover:text-gray-300"
+              className={`font-medium text-base transition flex items-center gap-1.5 ${
+                chartMode === "druck" ? "text-amber-400" : "text-gray-500 hover:text-gray-300"
               }`}
             >
-              💨 Luftdruckverlauf
+              <Wind className="w-4 h-4" strokeWidth={1.75} /> Luftdruck
             </button>
-            <span className="text-gray-600">|</span>
+            <span className="text-gray-700">|</span>
             <button
               onClick={() => setChartMode("temp")}
-              className={`font-bold text-base transition ${
-                chartMode === "temp" ? "text-green-400" : "text-gray-500 hover:text-gray-300"
+              className={`font-medium text-base transition flex items-center gap-1.5 ${
+                chartMode === "temp" ? "text-emerald-400" : "text-gray-500 hover:text-gray-300"
               }`}
             >
-              🌡️ Temperaturverlauf
+              <Thermometer className="w-4 h-4" strokeWidth={1.75} /> Temperatur
             </button>
           </div>
 
-          <p className="text-gray-500 text-xs">🐟 = Fang bei diesem Wert</p>
+          <p className="text-gray-500 text-xs">Fisch-Symbol = Fang bei diesem Wert</p>
 
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={chartData}>
@@ -279,10 +286,10 @@ export default function SessionDetailPage() {
       {/* FÄNGE */}
       <div className="space-y-3">
         <div className="flex justify-between items-center">
-          <h2 className="text-white font-bold text-lg">🐟 Fänge ({catches?.length ?? 0})</h2>
+          <h2 className="text-white font-semibold text-lg flex items-center gap-2"><Fish className="w-5 h-5 text-teal-400" strokeWidth={1.75} /> Fänge ({catches?.length ?? 0})</h2>
           <Link href="/new">
-            <button className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded-xl text-sm transition">
-              ➕ Fang
+            <button className="bg-teal-600 hover:bg-teal-500 text-white px-3 py-1.5 rounded-xl text-sm transition flex items-center gap-1.5">
+              <Plus className="w-4 h-4" /> Fang
             </button>
           </Link>
         </div>
@@ -292,7 +299,7 @@ export default function SessionDetailPage() {
         )}
 
         {catches?.map((c: any) => (
-          <div key={c.id} className="bg-gray-800 rounded-2xl overflow-hidden">
+          <div key={c.id} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
             {c.image_url && (
               <img
                 src={c.image_url}
@@ -304,20 +311,20 @@ export default function SessionDetailPage() {
             <div className="p-4 space-y-2">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-white font-bold">
+                  <p className="text-white font-semibold">
                     {c.fish}
                     {c.sub_fish && <span className="text-gray-400 font-normal text-sm ml-2">{c.sub_fish}</span>}
                   </p>
-                  <p className="text-gray-400 text-sm">
-                    {c.length_cm ? `📏 ${c.length_cm} cm` : ""}
-                    {c.weight_g ? `  ⚖️ ${c.weight_g} g` : ""}
-                  </p>
+                  <div className="flex items-center gap-3 text-gray-400 text-sm mt-0.5">
+                    {c.length_cm ? <span className="flex items-center gap-1"><Ruler className="w-3.5 h-3.5" strokeWidth={1.75} /> {c.length_cm} cm</span> : null}
+                    {c.weight_g ? <span className="flex items-center gap-1"><Scale className="w-3.5 h-3.5" strokeWidth={1.75} /> {c.weight_g} g</span> : null}
+                  </div>
                 </div>
                 <div className="text-right">
-                  <span className={`text-xs px-2 py-1 rounded-full ${
+                  <span className={`text-xs px-2.5 py-1 rounded-full ${
                     c.status === "Zurückgesetzt"
-                      ? "bg-blue-600/20 text-blue-400"
-                      : "bg-orange-600/20 text-orange-400"
+                      ? "bg-blue-500/15 text-blue-400"
+                      : "bg-orange-500/15 text-orange-400"
                   }`}>
                     {c.status || "-"}
                   </span>
@@ -325,13 +332,13 @@ export default function SessionDetailPage() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-3 text-xs text-gray-400">
-                {c.method && <span>🎣 {c.method}</span>}
-                {c.bait && <span>🪱 {c.bait}</span>}
-                {c.water_temp && <span>💧 {c.water_temp}°C Wasser</span>}
-                {c.temperature && <span>🌡️ {c.temperature}°C Luft</span>}
-                {c.pressure && <span>💨 {c.pressure} hPa</span>}
-                {c.weather && <span>🌦️ {c.weather}</span>}
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-gray-400">
+                {c.method && <span className="flex items-center gap-1"><Fish className="w-3.5 h-3.5" strokeWidth={1.75} /> {c.method}</span>}
+                {c.bait && <span className="text-gray-500">{c.bait}</span>}
+                {c.water_temp && <span className="flex items-center gap-1"><Droplet className="w-3.5 h-3.5" strokeWidth={1.75} /> {c.water_temp}°C Wasser</span>}
+                {c.temperature && <span className="flex items-center gap-1"><Thermometer className="w-3.5 h-3.5" strokeWidth={1.75} /> {c.temperature}°C Luft</span>}
+                {c.pressure && <span className="flex items-center gap-1"><Wind className="w-3.5 h-3.5" strokeWidth={1.75} /> {c.pressure} hPa</span>}
+                {c.weather && <span className="flex items-center gap-1"><Cloud className="w-3.5 h-3.5" strokeWidth={1.75} /> {c.weather}</span>}
               </div>
 
               {c.notes && <p className="text-gray-500 text-sm italic">"{c.notes}"</p>}
