@@ -14,6 +14,7 @@ const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"
 export default function StatsPage() {
   const router = useRouter();
   const [catches, setCatches] = useState<any[]>([]);
+  const [foreignCatches, setForeignCatches] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,7 +53,10 @@ export default function StatsPage() {
       .select("*")
       .order("created_at", { ascending: true });
 
-    setCatches(catchData || []);
+    // Eigene Fänge und Begleiter-Fänge trennen – eigene Statistik zählt nur eigene
+    const all = catchData || [];
+    setCatches(all.filter((c: any) => !c.is_foreign));
+    setForeignCatches(all.filter((c: any) => c.is_foreign));
     setSessions(sessionData || []);
     setLogs(logData || []);
     setLoading(false);
@@ -76,7 +80,7 @@ export default function StatsPage() {
   };
 
   if (loading) return <div className="p-4 text-gray-400">Laden...</div>;
-  if (catches.length === 0) return <div className="p-4 text-gray-400">Noch keine Fänge vorhanden.</div>;
+  if (catches.length === 0 && foreignCatches.length === 0) return <div className="p-4 text-gray-400">Noch keine Fänge vorhanden.</div>;
 
   // 🐟 Fische pro Gewässer
   const perLocation: Record<string, number> = {};
@@ -209,6 +213,34 @@ export default function StatsPage() {
   ];
 
   const catchesWithGps = catches.filter((c) => c.latitude && c.longitude);
+
+  // 👥 Begleiter-Auswertung (Stufe B)
+  const perAngler: Record<string, number> = {};
+  foreignCatches.forEach((c) => {
+    const n = c.angler_name || "Unbekannt";
+    perAngler[n] = (perAngler[n] || 0) + 1;
+  });
+  const anglerData = Object.entries(perAngler)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+
+  const perForeignBait: Record<string, number> = {};
+  foreignCatches.forEach((c) => {
+    if (!c.bait) return;
+    perForeignBait[c.bait] = (perForeignBait[c.bait] || 0) + 1;
+  });
+  const foreignBaitData = Object.entries(perForeignBait)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+
+  const perForeignFish: Record<string, number> = {};
+  foreignCatches.forEach((c) => {
+    const f = c.fish || "Unbekannt";
+    perForeignFish[f] = (perForeignFish[f] || 0) + 1;
+  });
+  const foreignFishData = Object.entries(perForeignFish)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
 
   return (
     <div className="p-4 max-w-xl mx-auto space-y-8">
@@ -420,6 +452,66 @@ export default function StatsPage() {
           </ResponsiveContainer>
         )}
       </div>
+
+      {/* 👥 BEGLEITER-AUSWERTUNG (separat, zählt nicht in die eigene Statistik) */}
+      {foreignCatches.length > 0 && (
+        <>
+          <div className="border-t border-gray-800 pt-6">
+            <p className="text-yellow-400 font-semibold text-sm uppercase tracking-wider">👥 Begleiter-Auswertung</p>
+            <p className="text-gray-500 text-xs mt-1">{foreignCatches.length} Fänge von Begleitern · getrennt von deiner Statistik</p>
+          </div>
+
+          <button
+            onClick={() => exportExcel(foreignCatches, "begleiter-faenge.xlsx")}
+            className="w-full bg-gray-800 hover:bg-gray-700 text-white py-3 rounded-xl text-sm transition"
+          >
+            📥 Begleiter-Fänge exportieren
+          </button>
+
+          {/* Fänge pro Angler */}
+          <div className="bg-gray-800 rounded-2xl p-4 space-y-3">
+            <h2 className="text-white font-bold">🎣 Fänge pro Angler</h2>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={anglerData}>
+                <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 11 }} />
+                <YAxis tick={{ fill: "#9ca3af", fontSize: 11 }} allowDecimals={false} />
+                <Tooltip contentStyle={{ backgroundColor: "#1f2937", border: "none", borderRadius: "8px", color: "#fff" }} />
+                <Bar dataKey="count" fill="#eab308" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Erfolgreiche Köder bei Begleitern */}
+          <div className="bg-gray-800 rounded-2xl p-4 space-y-3">
+            <h2 className="text-white font-bold">🪱 Erfolgreiche Köder (Begleiter)</h2>
+            {foreignBaitData.length === 0 ? (
+              <p className="text-gray-500 text-sm">Keine Köderdaten vorhanden</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={foreignBaitData} layout="vertical">
+                  <XAxis type="number" tick={{ fill: "#9ca3af", fontSize: 11 }} allowDecimals={false} />
+                  <YAxis type="category" dataKey="name" tick={{ fill: "#9ca3af", fontSize: 11 }} width={90} />
+                  <Tooltip contentStyle={{ backgroundColor: "#1f2937", border: "none", borderRadius: "8px", color: "#fff" }} />
+                  <Bar dataKey="count" fill="#f59e0b" radius={[0, 6, 6, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* Fischarten bei Begleitern */}
+          <div className="bg-gray-800 rounded-2xl p-4 space-y-3">
+            <h2 className="text-white font-bold">🐟 Fischarten (Begleiter)</h2>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={foreignFishData}>
+                <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 11 }} />
+                <YAxis tick={{ fill: "#9ca3af", fontSize: 11 }} allowDecimals={false} />
+                <Tooltip contentStyle={{ backgroundColor: "#1f2937", border: "none", borderRadius: "8px", color: "#fff" }} />
+                <Bar dataKey="count" fill="#eab308" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </>
+      )}
 
     </div>
   );

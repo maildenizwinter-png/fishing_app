@@ -29,6 +29,12 @@ export default function NewCatchPage() {
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Begleiter-Fang (zählt nicht als eigener Fang)
+  const [isForeign, setIsForeign] = useState(false);
+  const [anglerName, setAnglerName] = useState("");
+  const [knownAnglers, setKnownAnglers] = useState<string[]>([]);
+  const [addingNewAngler, setAddingNewAngler] = useState(false);
+
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
@@ -39,6 +45,7 @@ export default function NewCatchPage() {
     } else {
       loadSessions();
     }
+    loadKnownAnglers();
   }, []);
 
   const loadSessions = async () => {
@@ -49,6 +56,22 @@ export default function NewCatchPage() {
       .eq("user_id", user?.id)
       .order("start_time", { ascending: false });
     setSessions(data || []);
+  };
+
+  // Bereits vergebene Begleiter-Namen laden → als Vorschlag, damit Schreibweise gleich bleibt
+  const loadKnownAnglers = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase
+      .from("catches")
+      .select("angler_name")
+      .eq("user_id", user.id)
+      .eq("is_foreign", true)
+      .not("angler_name", "is", null);
+    const names = Array.from(
+      new Set((data || []).map((r: any) => r.angler_name).filter(Boolean))
+    ).sort((a: string, b: string) => a.localeCompare(b));
+    setKnownAnglers(names as string[]);
   };
 
   const handleFishChange = (value: string) => {
@@ -184,6 +207,8 @@ export default function NewCatchPage() {
       created_at: catchTime,
       latitude,
       longitude,
+      is_foreign: isForeign,
+      angler_name: isForeign ? (anglerName.trim() || null) : null,
       ...weatherData,
     }]);
 
@@ -214,6 +239,65 @@ export default function NewCatchPage() {
       <div className="pt-4">
         <h1 className="text-2xl font-bold text-white">🐟 Neuer Fang</h1>
         <p className="text-gray-400 text-sm">GPS + Wetter werden automatisch erfasst 🌦️📍</p>
+      </div>
+
+      {/* Wer hat gefangen? – Begleiter-Fänge zählen nicht in die eigene Statistik */}
+      <div className="space-y-2">
+        <label className={labelClass}>Wer hat gefangen?</label>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => { setIsForeign(false); setAnglerName(""); setAddingNewAngler(false); }}
+            className={`py-3 rounded-xl text-sm font-semibold transition ${!isForeign ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400 border border-gray-700"}`}
+          >
+            🙋 Ich
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsForeign(true)}
+            className={`py-3 rounded-xl text-sm font-semibold transition ${isForeign ? "bg-yellow-600 text-white" : "bg-gray-800 text-gray-400 border border-gray-700"}`}
+          >
+            👥 Begleiter
+          </button>
+        </div>
+
+        {isForeign && (
+          <div className="space-y-2 pt-1">
+            {knownAnglers.length > 0 && !addingNewAngler ? (
+              <select
+                value={anglerName}
+                onChange={(e) => {
+                  if (e.target.value === "__new__") { setAddingNewAngler(true); setAnglerName(""); }
+                  else setAnglerName(e.target.value);
+                }}
+                className={inputClass}
+              >
+                <option value="">Angler wählen…</option>
+                {knownAnglers.map((n) => <option key={n} value={n}>{n}</option>)}
+                <option value="__new__">➕ Neuer Angler…</option>
+              </select>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  value={anglerName}
+                  onChange={(e) => setAnglerName(e.target.value)}
+                  placeholder="Name des Begleiters"
+                  className={inputClass}
+                />
+                {knownAnglers.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => { setAddingNewAngler(false); setAnglerName(""); }}
+                    className="px-3 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-xl text-sm whitespace-nowrap"
+                  >
+                    ↩ Liste
+                  </button>
+                )}
+              </div>
+            )}
+            <p className="text-yellow-500/80 text-xs">⚠️ Dieser Fang zählt nicht in deine Statistik.</p>
+          </div>
+        )}
       </div>
 
       {/* Session wählen – optional */}

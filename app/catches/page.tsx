@@ -32,10 +32,14 @@ function CatchesContent() {
 
   const [galleryImage, setGalleryImage] = useState<string | null>(null);
 
+  const [editIsForeign, setEditIsForeign] = useState(false);
+  const [editAnglerName, setEditAnglerName] = useState("");
+
   const [filterLocation, setFilterLocation] = useState("");
   const [filterYear, setFilterYear] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterFish, setFilterFish] = useState("");
+  const [filterAngler, setFilterAngler] = useState<"mine" | "foreign" | "all">("mine");
 
   const load = async () => {
     const filter = await getUserFilter();
@@ -123,6 +127,8 @@ function CatchesContent() {
     setEditImageUrl(c.image_url || null);
     setEditImageFile(null);
     setEditImagePreview(null);
+    setEditIsForeign(c.is_foreign || false);
+    setEditAnglerName(c.angler_name || "");
     handleFishChange(c.fish);
   };
 
@@ -179,6 +185,8 @@ function CatchesContent() {
       latitude: editLat ? Number(editLat) : null,
       longitude: editLon ? Number(editLon) : null,
       image_url: imageUrl,
+      is_foreign: editIsForeign,
+      angler_name: editIsForeign ? (editAnglerName.trim() || null) : null,
     }).eq("id", id);
     setEditingId(null);
     load();
@@ -223,6 +231,8 @@ function CatchesContent() {
   );
 
   const filtered = catches.filter((c) => {
+    if (filterAngler === "mine" && c.is_foreign) return false;
+    if (filterAngler === "foreign" && !c.is_foreign) return false;
     if (filterLocation && c.sessions?.location !== filterLocation) return false;
     if (filterStatus && c.status !== filterStatus) return false;
     if (filterFish && c.fish !== filterFish) return false;
@@ -285,9 +295,15 @@ function CatchesContent() {
           </select>
         </div>
 
-        {(filterLocation || filterStatus || filterYear || filterFish) && (
+        <select value={filterAngler} onChange={(e) => setFilterAngler(e.target.value as "mine" | "foreign" | "all")} className={inputClass + " w-full"}>
+          <option value="mine">🙋 Meine Fänge</option>
+          <option value="foreign">👥 Begleiter-Fänge</option>
+          <option value="all">Alle (Meine + Begleiter)</option>
+        </select>
+
+        {(filterLocation || filterStatus || filterYear || filterFish || filterAngler !== "mine") && (
           <button
-            onClick={() => { setFilterLocation(""); setFilterStatus(""); setFilterYear(""); setFilterFish(""); }}
+            onClick={() => { setFilterLocation(""); setFilterStatus(""); setFilterYear(""); setFilterFish(""); setFilterAngler("mine"); }}
             className="text-red-400 text-sm hover:text-red-300 transition"
           >
             ✕ Filter zurücksetzen
@@ -416,6 +432,26 @@ function CatchesContent() {
                   </label>
                 </div>
 
+                <div className="bg-gray-700/50 rounded-xl p-3 space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editIsForeign}
+                      onChange={(e) => setEditIsForeign(e.target.checked)}
+                      className="w-4 h-4 accent-yellow-500"
+                    />
+                    <span className="text-gray-200 text-sm">👥 Begleiter-Fang (zählt nicht in meine Statistik)</span>
+                  </label>
+                  {editIsForeign && (
+                    <input
+                      value={editAnglerName}
+                      onChange={(e) => setEditAnglerName(e.target.value)}
+                      placeholder="Name des Begleiters"
+                      className="w-full bg-gray-700 text-white border border-gray-600 rounded-xl p-2 text-sm"
+                    />
+                  )}
+                </div>
+
                 <div className="flex gap-2">
                   <button onClick={() => saveEdit(c.id)} className="flex-1 bg-green-600 hover:bg-green-500 text-white py-2 rounded-xl transition">
                     💾 Speichern
@@ -432,6 +468,9 @@ function CatchesContent() {
                     <p className="text-white font-bold text-lg">
                       {c.fish || "-"}
                       {c.sub_fish && <span className="text-gray-400 font-normal text-sm ml-2">{c.sub_fish}</span>}
+                      {c.is_foreign && (
+                        <span className="ml-2 text-xs bg-yellow-600/30 text-yellow-300 px-2 py-0.5 rounded-full align-middle">👥 {c.angler_name || "Begleiter"}</span>
+                      )}
                     </p>
                     <p className="text-gray-400 text-sm">
                       {c.length_cm ? `📏 ${c.length_cm} cm` : ""}

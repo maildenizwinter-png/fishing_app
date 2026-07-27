@@ -10,6 +10,15 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
 });
 
+// Eigenes Icon für Begleiter-Fänge (gelber Pin mit 👥)
+const foreignIcon = L.divIcon({
+  className: "",
+  html: `<div style="background:#eab308;width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;"><span style="transform:rotate(45deg);font-size:12px;line-height:1;">👥</span></div>`,
+  iconSize: [26, 26],
+  iconAnchor: [13, 26],
+  popupAnchor: [0, -24],
+});
+
 export default function MapView({ catches }: { catches: any[] }) {
   const center = catches.length > 0
     ? [catches[0].latitude, catches[0].longitude] as [number, number]
@@ -30,9 +39,14 @@ export default function MapView({ catches }: { catches: any[] }) {
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       {catches.map((c) => (
-        <Marker key={c.id} position={[c.latitude, c.longitude]}>
+        <Marker key={c.id} position={[c.latitude, c.longitude]} icon={c.is_foreign ? foreignIcon : undefined}>
           <Popup>
             <div style={{ minWidth: "150px" }}>
+              {c.is_foreign && (
+                <div style={{ color: "#a16207", fontWeight: 600, marginBottom: "2px" }}>
+                  👥 Begleiter{c.angler_name ? `: ${c.angler_name}` : ""}
+                </div>
+              )}
               <strong>{c.fish}</strong>
               {c.sub_fish && <span> ({c.sub_fish})</span>}
               <br />

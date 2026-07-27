@@ -10,6 +10,7 @@ export default function MapPage() {
   const router = useRouter();
   const [catches, setCatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showForeign, setShowForeign] = useState(false);
 
   useEffect(() => {
     loadCatches();
@@ -30,6 +31,9 @@ export default function MapPage() {
     setLoading(false);
   };
 
+  const foreignCatches = catches.filter((c) => c.is_foreign);
+  const displayed = showForeign ? catches : catches.filter((c) => !c.is_foreign);
+
   return (
     <div className="flex flex-col h-screen bg-gray-950">
       <div className="p-4 flex items-center gap-3 border-b border-gray-800">
@@ -37,18 +41,26 @@ export default function MapPage() {
           ← Zurück
         </button>
         <h1 className="text-white font-bold text-lg">🗺️ Fangkarte</h1>
-        <span className="text-gray-400 text-sm ml-auto">{catches.length} Fänge</span>
+        {foreignCatches.length > 0 && (
+          <button
+            onClick={() => setShowForeign((v) => !v)}
+            className={`ml-auto text-xs px-3 py-1 rounded-full transition ${showForeign ? "bg-yellow-600 text-white" : "bg-gray-800 text-gray-400 border border-gray-700"}`}
+          >
+            👥 Begleiter {showForeign ? "an" : "aus"}
+          </button>
+        )}
+        <span className={`text-gray-400 text-sm ${foreignCatches.length > 0 ? "" : "ml-auto"}`}>{displayed.length} Fänge</span>
       </div>
 
       {loading ? (
         <div className="flex-1 flex items-center justify-center text-gray-400">Laden...</div>
-      ) : catches.length === 0 ? (
+      ) : displayed.length === 0 ? (
         <div className="flex-1 flex items-center justify-center text-gray-400">
           Noch keine Fänge mit GPS-Daten vorhanden
         </div>
       ) : (
         <div className="flex-1">
-          <MapView catches={catches} />
+          <MapView catches={displayed} />
         </div>
       )}
     </div>

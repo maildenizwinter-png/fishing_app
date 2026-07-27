@@ -122,9 +122,10 @@ useEffect(() => {
 
     if (catches) {
       setFishCount(catches.filter((c: any) =>
-        c.created_at?.slice(0, 4) === currentYear.toString()
+        !c.is_foreign && c.created_at?.slice(0, 4) === currentYear.toString()
       ).length);
-      setLastCatch(catches[0] || null);
+      // Letzter Fang: erster eigener Fang (Begleiter-Fänge werden übersprungen)
+      setLastCatch(catches.find((c: any) => !c.is_foreign) || null);
     }
 
     const storedId = localStorage.getItem("activeSessionId");
@@ -324,9 +325,14 @@ useEffect(() => {
               <p className="text-gray-500 text-sm">Noch keine Fänge</p>
             ) : (
               sessionCatches.map((c: any) => (
-                <div key={c.id} className="bg-gray-700 rounded-xl p-3 flex justify-between items-center">
+                <div key={c.id} className={`bg-gray-700 rounded-xl p-3 flex justify-between items-center ${c.is_foreign ? "border border-yellow-600/40" : ""}`}>
                   <div>
-                    <p className="text-white font-semibold">{c.fish}</p>
+                    <p className="text-white font-semibold">
+                      {c.fish}
+                      {c.is_foreign && (
+                        <span className="ml-2 text-xs bg-yellow-600/30 text-yellow-300 px-2 py-0.5 rounded-full">👥 {c.angler_name || "Begleiter"}</span>
+                      )}
+                    </p>
                     <p className="text-gray-400 text-xs">{c.length_cm ? `${c.length_cm} cm` : ""} • {c.status}</p>
                   </div>
                   <p className="text-gray-500 text-xs">{formatCatchTime(c.created_at)}</p>
