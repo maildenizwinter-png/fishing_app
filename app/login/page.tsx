@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import Link from "next/link";
+import { Fish } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -58,9 +59,11 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-6">
 
-        <div className="text-center space-y-2">
-          <p className="text-5xl">🎣</p>
-          <h1 className="text-2xl font-bold text-white">Fishing App</h1>
+        <div className="text-center space-y-3">
+          <div className="w-14 h-14 rounded-2xl bg-teal-500/10 flex items-center justify-center mx-auto">
+            <Fish className="w-7 h-7 text-teal-400" strokeWidth={1.75} />
+          </div>
+          <h1 className="text-2xl font-semibold text-white tracking-tight">Fishing App</h1>
           <p className="text-gray-400 text-sm">Melde dich an um fortzufahren</p>
         </div>
 
@@ -98,9 +101,9 @@ export default function LoginPage() {
           <button
             onClick={handleLogin}
             disabled={loading}
-            className="w-full bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-bold py-4 rounded-2xl text-lg transition"
+            className="w-full bg-teal-600 hover:bg-teal-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-semibold py-4 rounded-2xl text-lg transition"
           >
-            {loading ? "⏳ Anmelden..." : "🔑 Anmelden"}
+            {loading ? "Anmelden…" : "Anmelden"}
           </button>
 
           <div className="text-center">
@@ -116,7 +119,7 @@ export default function LoginPage() {
           <div className="text-center pt-2">
             <p className="text-gray-500 text-sm">
               Noch kein Account?{" "}
-              <Link href="/register" className="text-blue-400 hover:text-blue-300 transition">
+              <Link href="/register" className="text-teal-400 hover:text-teal-300 transition">
                 Jetzt registrieren
               </Link>
             </p>

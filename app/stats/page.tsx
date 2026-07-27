@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabaseClient";
 import { getUserFilter } from "../../lib/getUserId";
 import * as XLSX from "xlsx";
 import { useRouter } from "next/navigation";
+import { BarChart3, Download, Map, ArrowRight } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell
@@ -245,23 +246,31 @@ export default function StatsPage() {
   return (
     <div className="p-4 max-w-xl mx-auto space-y-8">
 
-      <div className="pt-4">
-        <h1 className="text-2xl font-bold text-white">📊 Auswertung</h1>
-        <p className="text-gray-400 text-sm">
-          {catches.length} Fänge gesamt
-          {showAllUsers && <span className="text-yellow-400 ml-2">· 🛡️ Alle User</span>}
-        </p>
+      <div className="pt-4 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center shrink-0">
+          <BarChart3 className="w-5 h-5 text-teal-400" strokeWidth={1.75} />
+        </div>
+        <div>
+          <h1 className="text-2xl font-semibold text-white tracking-tight">Auswertung</h1>
+          <p className="text-gray-400 text-sm">
+            {catches.length} Fänge gesamt
+            {showAllUsers && <span className="text-yellow-400 ml-2">· Alle User</span>}
+          </p>
+        </div>
       </div>
 
       {/* Karten Button */}
       {catchesWithGps.length > 0 && (
         <a href="/map">
-          <div className="bg-blue-600 hover:bg-blue-500 transition rounded-2xl p-4 flex items-center justify-between">
-            <div>
-              <p className="text-white font-bold">🗺️ Alle Fänge auf Karte</p>
-              <p className="text-blue-200 text-sm">{catchesWithGps.length} Fänge mit GPS-Daten</p>
+          <div className="bg-teal-600 hover:bg-teal-500 transition rounded-2xl p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Map className="w-5 h-5 text-white" strokeWidth={1.75} />
+              <div>
+                <p className="text-white font-semibold">Alle Fänge auf Karte</p>
+                <p className="text-teal-100/80 text-sm">{catchesWithGps.length} Fänge mit GPS-Daten</p>
+              </div>
             </div>
-            <span className="text-2xl">→</span>
+            <ArrowRight className="w-5 h-5 text-white" />
           </div>
         </a>
       )}
@@ -270,15 +279,15 @@ export default function StatsPage() {
       <div className="flex gap-3">
         <button
           onClick={() => exportExcel(catches, "faenge.xlsx")}
-          className="flex-1 bg-gray-800 hover:bg-gray-700 text-white py-3 rounded-xl text-sm transition"
+          className="flex-1 bg-gray-900 border border-gray-800 hover:border-gray-700 text-white py-3 rounded-xl text-sm transition flex items-center justify-center gap-2"
         >
-          📥 Fänge exportieren
+          <Download className="w-4 h-4" /> Fänge exportieren
         </button>
         <button
           onClick={() => exportExcel(sessions, "sessions.xlsx")}
-          className="flex-1 bg-gray-800 hover:bg-gray-700 text-white py-3 rounded-xl text-sm transition"
+          className="flex-1 bg-gray-900 border border-gray-800 hover:border-gray-700 text-white py-3 rounded-xl text-sm transition flex items-center justify-center gap-2"
         >
-          📥 Sessions exportieren
+          <Download className="w-4 h-4" /> Sessions exportieren
         </button>
       </div>
 
@@ -463,9 +472,9 @@ export default function StatsPage() {
 
           <button
             onClick={() => exportExcel(foreignCatches, "begleiter-faenge.xlsx")}
-            className="w-full bg-gray-800 hover:bg-gray-700 text-white py-3 rounded-xl text-sm transition"
+            className="w-full bg-gray-900 border border-gray-800 hover:border-gray-700 text-white py-3 rounded-xl text-sm transition flex items-center justify-center gap-2"
           >
-            📥 Begleiter-Fänge exportieren
+            <Download className="w-4 h-4" /> Begleiter-Fänge exportieren
           </button>
 
           {/* Fänge pro Angler */}

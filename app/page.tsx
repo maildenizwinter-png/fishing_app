@@ -3,6 +3,10 @@ import { useEffect, useState, useRef } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { getActiveUserId } from "../lib/getUserId";
 import Link from "next/link";
+import {
+  Fish, Waves, Clock, Play, Square, Plus, User, MapPin, Ruler,
+  Scale, Thermometer, Cloud, RefreshCw, ArrowDown, Users,
+} from "lucide-react";
 
 export default function Home() {
   const [fishCount, setFishCount] = useState(0);
@@ -216,6 +220,12 @@ useEffect(() => {
     return <div className="p-4 text-gray-400">Laden...</div>;
   }
 
+  const statCards = [
+    { href: "/catches", icon: Fish, value: fishCount, label: `Fische ${currentYear}` },
+    { href: "/sessions", icon: Waves, value: sessionCount, label: `Sessions ${currentYear}` },
+    { href: null, icon: Clock, value: totalTime, label: "am Wasser" },
+  ];
+
   return (
     <div
       ref={containerRef}
@@ -226,7 +236,7 @@ useEffect(() => {
         transform: `translateY(${pullDistance}px)`,
         transition: pullDistance === 0 ? "transform 0.3s ease-out" : "none",
       }}
-      className="p-4 max-w-xl mx-auto flex flex-col gap-3"
+      className="p-4 max-w-xl mx-auto flex flex-col gap-4"
     >
 
       {(pullDistance > 0 || refreshing) && (
@@ -237,105 +247,111 @@ useEffect(() => {
             opacity: Math.min(pullDistance / 70, 1),
           }}
         >
-          <span className="text-2xl mb-1">
-            {refreshing ? "⏳" : pullDistance > 70 ? "🔄" : "⬇️"}
-          </span>
+          {refreshing ? (
+            <RefreshCw className="w-6 h-6 mb-1 animate-spin text-teal-400" />
+          ) : (
+            <ArrowDown className={`w-6 h-6 mb-1 transition-transform ${pullDistance > 70 ? "rotate-180 text-teal-400" : ""}`} />
+          )}
           <span>
             {refreshing ? "Lädt..." : pullDistance > 70 ? "Loslassen zum Aktualisieren" : "Weiter ziehen..."}
           </span>
         </div>
       )}
 
-      <div className="pt-4 flex justify-between items-start">
-        <div className="space-y-1">
-          <p className="text-gray-400 text-sm">Willkommen zurück 👋</p>
-          <h1 className="text-3xl font-bold text-gray-500">
+      {/* Header */}
+      <div className="pt-4 flex justify-between items-center">
+        <div className="space-y-0.5">
+          <p className="text-gray-500 text-sm">Willkommen zurück</p>
+          <h1 className="text-2xl font-semibold text-white tracking-tight">
             {userName || "Angler"}
           </h1>
-          <div className="h-2" />
         </div>
         <Link href="/profile">
           {avatarUrl ? (
             <img
               src={avatarUrl}
               alt="Profil"
-              className="w-11 h-11 rounded-full object-cover hover:opacity-80 transition border-2 border-gray-700"
+              className="w-11 h-11 rounded-full object-cover hover:opacity-80 transition ring-1 ring-gray-700"
             />
           ) : (
-            <div className="w-11 h-11 bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center transition">
-              <span className="text-white text-xl">👤</span>
+            <div className="w-11 h-11 bg-gray-800 hover:bg-gray-700 rounded-full flex items-center justify-center transition ring-1 ring-gray-700">
+              <User className="w-5 h-5 text-gray-400" />
             </div>
           )}
         </Link>
       </div>
 
+      {/* Stat-Karten */}
       <div className="grid grid-cols-3 gap-3">
-        <Link href="/catches">
-          <div className="bg-gray-800 rounded-2xl p-4 flex flex-col items-center gap-1 hover:bg-gray-700 transition">
-            <span className="text-2xl">🐟</span>
-            <span className="text-xl font-bold text-white">{fishCount}</span>
-            <span className="text-xs text-gray-400">Fische</span>
-          </div>
-        </Link>
-
-        <Link href="/sessions">
-          <div className="bg-gray-800 rounded-2xl p-4 flex flex-col items-center gap-1 hover:bg-gray-700 transition">
-            <span className="text-2xl">🎣</span>
-            <span className="text-xl font-bold text-white">{sessionCount}</span>
-            <span className="text-xs text-gray-400">Sessions {currentYear}</span>
-          </div>
-        </Link>
-
-        <div className="bg-gray-800 rounded-2xl p-4 flex flex-col items-center gap-1">
-          <span className="text-2xl">⏱️</span>
-          <span className="text-xl font-bold text-white">{totalTime}</span>
-          <span className="text-xs text-gray-400">am Wasser</span>
-        </div>
+        {statCards.map(({ href, icon: Icon, value, label }, i) => {
+          const card = (
+            <div className="rounded-2xl bg-gray-900 border border-gray-800 p-4 flex flex-col gap-3 h-full hover:border-gray-700 transition">
+              <div className="w-9 h-9 rounded-xl bg-gray-800 flex items-center justify-center">
+                <Icon className="w-[18px] h-[18px] text-gray-300" strokeWidth={1.75} />
+              </div>
+              <div className="space-y-0.5">
+                <p className="text-2xl font-semibold text-white leading-none">{value}</p>
+                <p className="text-xs text-gray-500">{label}</p>
+              </div>
+            </div>
+          );
+          return href ? <Link key={i} href={href}>{card}</Link> : <div key={i}>{card}</div>;
+        })}
       </div>
 
       {!activeSession ? (
         <Link href="/session">
-          <div className="bg-green-600 hover:bg-green-500 transition rounded-2xl p-5 flex items-center justify-between shadow-lg">
+          <div className="bg-teal-600 hover:bg-teal-500 transition rounded-2xl p-5 flex items-center justify-between shadow-lg shadow-teal-900/30">
             <div>
-              <p className="text-white font-bold text-lg">Neue Session</p>
-              <p className="text-green-200 text-sm">Angelzeit starten</p>
+              <p className="text-white font-semibold text-lg">Neue Session</p>
+              <p className="text-teal-100/80 text-sm">Angelzeit starten</p>
             </div>
-            <span className="text-3xl">▶️</span>
+            <div className="w-11 h-11 rounded-full bg-white/15 flex items-center justify-center">
+              <Play className="w-5 h-5 text-white fill-white" />
+            </div>
           </div>
         </Link>
       ) : (
-        <div className="bg-gray-800 rounded-2xl p-4 space-y-4 border border-red-500/30">
+        <div className="bg-gray-900 rounded-2xl p-4 space-y-4 border border-red-500/30">
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-              <span className="text-red-400 font-semibold text-sm">Laufende Session</span>
+              <span className="text-red-400 font-medium text-sm">Laufende Session</span>
             </div>
-            <span className="text-gray-400 text-sm">{getDuration(activeSession.start_time)}</span>
+            <span className="text-gray-400 text-sm tabular-nums">{getDuration(activeSession.start_time)}</span>
           </div>
 
-          <div>
-            <p className="text-white font-bold">🎣 {activeSession.location}</p>
-            <p className="text-gray-400 text-sm">🕒 Start: {formatTime(activeSession.start_time)}</p>
+          <div className="space-y-1">
+            <p className="text-white font-semibold flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-gray-400" strokeWidth={1.75} />
+              {activeSession.location}
+            </p>
+            <p className="text-gray-400 text-sm flex items-center gap-2">
+              <Clock className="w-4 h-4 text-gray-500" strokeWidth={1.75} />
+              Start: {formatTime(activeSession.start_time)}
+            </p>
           </div>
 
           <div className="space-y-2">
-            <p className="text-gray-400 text-xs uppercase tracking-wider">Fänge dieser Session</p>
+            <p className="text-gray-500 text-xs uppercase tracking-wider">Fänge dieser Session</p>
             {sessionCatches.length === 0 ? (
               <p className="text-gray-500 text-sm">Noch keine Fänge</p>
             ) : (
               sessionCatches.map((c: any) => (
-                <div key={c.id} className={`bg-gray-700 rounded-xl p-3 flex justify-between items-center ${c.is_foreign ? "border border-yellow-600/40" : ""}`}>
+                <div key={c.id} className={`bg-gray-800 rounded-xl p-3 flex justify-between items-center ${c.is_foreign ? "border border-yellow-600/40" : ""}`}>
                   <div>
-                    <p className="text-white font-semibold">
+                    <p className="text-white font-medium flex items-center gap-2 flex-wrap">
                       {c.fish}
                       {c.is_foreign && (
-                        <span className="ml-2 text-xs bg-yellow-600/30 text-yellow-300 px-2 py-0.5 rounded-full">👥 {c.angler_name || "Begleiter"}</span>
+                        <span className="inline-flex items-center gap-1 text-xs bg-yellow-600/20 text-yellow-300 px-2 py-0.5 rounded-full">
+                          <Users className="w-3 h-3" /> {c.angler_name || "Begleiter"}
+                        </span>
                       )}
                     </p>
-                    <p className="text-gray-400 text-xs">{c.length_cm ? `${c.length_cm} cm` : ""} • {c.status}</p>
+                    <p className="text-gray-500 text-xs">{c.length_cm ? `${c.length_cm} cm` : ""} {c.length_cm && c.status ? "·" : ""} {c.status}</p>
                   </div>
-                  <p className="text-gray-500 text-xs">{formatCatchTime(c.created_at)}</p>
+                  <p className="text-gray-500 text-xs tabular-nums">{formatCatchTime(c.created_at)}</p>
                 </div>
               ))
             )}
@@ -343,24 +359,24 @@ useEffect(() => {
 
           <div className="flex gap-2">
             <Link href="/new" className="flex-1">
-              <button className="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-xl text-sm transition">
-                ➕ Fang hinzufügen
+              <button className="w-full bg-teal-600 hover:bg-teal-500 text-white py-2.5 rounded-xl text-sm font-medium transition flex items-center justify-center gap-2">
+                <Plus className="w-4 h-4" /> Fang hinzufügen
               </button>
             </Link>
             <button
               onClick={endSession}
-              className="flex-1 bg-red-600 hover:bg-red-500 text-white py-2 rounded-xl text-sm transition"
+              className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 py-2.5 rounded-xl text-sm font-medium transition flex items-center justify-center gap-2"
             >
-              ⏹️ Beenden
+              <Square className="w-4 h-4" /> Beenden
             </button>
           </div>
         </div>
       )}
 
       {!activeSession && lastCatch && (
-        <div className="bg-gray-800 rounded-2xl overflow-hidden">
+        <div className="bg-gray-900 rounded-2xl overflow-hidden border border-gray-800">
           <div className="px-4 pt-4 pb-2">
-            <p className="text-gray-400 text-xs uppercase tracking-wider">Letzter Fang</p>
+            <p className="text-gray-500 text-xs uppercase tracking-wider">Letzter Fang</p>
           </div>
 
           {lastCatch.image_url && (
@@ -374,34 +390,38 @@ useEffect(() => {
           <div className="p-4 space-y-2">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-white font-bold text-lg">
+                <p className="text-white font-semibold text-lg">
                   {lastCatch.fish}
                   {lastCatch.sub_fish && (
                     <span className="text-gray-400 font-normal text-sm ml-2">{lastCatch.sub_fish}</span>
                   )}
                 </p>
-                <p className="text-gray-400 text-sm">
-                  {lastCatch.length_cm ? `📏 ${lastCatch.length_cm} cm` : ""}
-                  {lastCatch.weight_g ? `  ⚖️ ${lastCatch.weight_g} g` : ""}
-                </p>
+                <div className="flex items-center gap-3 text-gray-400 text-sm mt-0.5">
+                  {lastCatch.length_cm ? (
+                    <span className="flex items-center gap-1"><Ruler className="w-3.5 h-3.5" strokeWidth={1.75} /> {lastCatch.length_cm} cm</span>
+                  ) : null}
+                  {lastCatch.weight_g ? (
+                    <span className="flex items-center gap-1"><Scale className="w-3.5 h-3.5" strokeWidth={1.75} /> {lastCatch.weight_g} g</span>
+                  ) : null}
+                </div>
               </div>
-              <span className={`text-xs px-2 py-1 rounded-full ${
+              <span className={`text-xs px-2.5 py-1 rounded-full ${
                 lastCatch.status === "Zurückgesetzt"
-                  ? "bg-blue-600/20 text-blue-400"
-                  : "bg-orange-600/20 text-orange-400"
+                  ? "bg-blue-500/15 text-blue-400"
+                  : "bg-orange-500/15 text-orange-400"
               }`}>
                 {lastCatch.status || "-"}
               </span>
             </div>
 
-            <div className="flex flex-wrap gap-3 text-xs text-gray-400">
-              {lastCatch.sessions?.location && <span>📍 {lastCatch.sessions.location}</span>}
-              {lastCatch.method && <span>🎣 {lastCatch.method}</span>}
-              {lastCatch.weather && <span>🌦️ {lastCatch.weather}</span>}
-              {lastCatch.temperature && <span>🌡️ {lastCatch.temperature}°C</span>}
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-gray-400">
+              {lastCatch.sessions?.location && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" strokeWidth={1.75} /> {lastCatch.sessions.location}</span>}
+              {lastCatch.method && <span className="flex items-center gap-1"><Fish className="w-3.5 h-3.5" strokeWidth={1.75} /> {lastCatch.method}</span>}
+              {lastCatch.weather && <span className="flex items-center gap-1"><Cloud className="w-3.5 h-3.5" strokeWidth={1.75} /> {lastCatch.weather}</span>}
+              {lastCatch.temperature && <span className="flex items-center gap-1"><Thermometer className="w-3.5 h-3.5" strokeWidth={1.75} /> {lastCatch.temperature}°C</span>}
             </div>
 
-            <p className="text-gray-600 text-xs">{formatCatchDate(lastCatch.created_at)}</p>
+            <p className="text-gray-600 text-xs pt-1">{formatCatchDate(lastCatch.created_at)}</p>
           </div>
         </div>
       )}

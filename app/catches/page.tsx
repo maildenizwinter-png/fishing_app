@@ -3,6 +3,7 @@ import { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 import { getUserFilter } from "../../lib/getUserId";
+import { Fish, Pencil, Trash2, Save, Map, Users, X, MapPin, Ruler, Scale, Droplet, Thermometer, Wind, Cloud, Satellite } from "lucide-react";
 
 function CatchesContent() {
   const searchParams = useSearchParams();
@@ -256,15 +257,20 @@ function CatchesContent() {
         >
           <img src={galleryImage} alt="Fang" className="max-w-full max-h-full rounded-2xl object-contain" />
           <button
-            className="absolute top-4 right-4 bg-gray-800 text-white rounded-full w-10 h-10 flex items-center justify-center text-xl"
+            className="absolute top-4 right-4 bg-gray-800 text-white rounded-full w-10 h-10 flex items-center justify-center"
             onClick={() => setGalleryImage(null)}
-          >✕</button>
+          ><X className="w-5 h-5" /></button>
         </div>
       )}
 
-      <div className="pt-4">
-        <h1 className="text-2xl font-bold text-white">🐟 Alle Fänge</h1>
-        <p className="text-gray-400 text-sm">{filtered.length} von {catches.length} Fängen</p>
+      <div className="pt-4 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center shrink-0">
+          <Fish className="w-5 h-5 text-teal-400" strokeWidth={1.75} />
+        </div>
+        <div>
+          <h1 className="text-2xl font-semibold text-white tracking-tight">Alle Fänge</h1>
+          <p className="text-gray-400 text-sm">{filtered.length} von {catches.length} Fängen</p>
+        </div>
       </div>
 
       <div className="bg-gray-800 rounded-2xl p-4 space-y-3">
@@ -440,7 +446,7 @@ function CatchesContent() {
                       onChange={(e) => setEditIsForeign(e.target.checked)}
                       className="w-4 h-4 accent-yellow-500"
                     />
-                    <span className="text-gray-200 text-sm">👥 Begleiter-Fang (zählt nicht in meine Statistik)</span>
+                    <span className="text-gray-200 text-sm flex items-center gap-1.5"><Users className="w-4 h-4 text-yellow-400" /> Begleiter-Fang (zählt nicht in meine Statistik)</span>
                   </label>
                   {editIsForeign && (
                     <input
@@ -453,10 +459,10 @@ function CatchesContent() {
                 </div>
 
                 <div className="flex gap-2">
-                  <button onClick={() => saveEdit(c.id)} className="flex-1 bg-green-600 hover:bg-green-500 text-white py-2 rounded-xl transition">
-                    💾 Speichern
+                  <button onClick={() => saveEdit(c.id)} className="flex-1 bg-teal-600 hover:bg-teal-500 text-white py-2 rounded-xl transition flex items-center justify-center gap-2">
+                    <Save className="w-4 h-4" /> Speichern
                   </button>
-                  <button onClick={() => setEditingId(null)} className="flex-1 bg-gray-600 hover:bg-gray-500 text-white py-2 rounded-xl transition">
+                  <button onClick={() => setEditingId(null)} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-xl transition">
                     Abbrechen
                   </button>
                 </div>
@@ -465,17 +471,19 @@ function CatchesContent() {
               <>
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="text-white font-bold text-lg">
+                    <p className="text-white font-semibold text-lg">
                       {c.fish || "-"}
                       {c.sub_fish && <span className="text-gray-400 font-normal text-sm ml-2">{c.sub_fish}</span>}
                       {c.is_foreign && (
-                        <span className="ml-2 text-xs bg-yellow-600/30 text-yellow-300 px-2 py-0.5 rounded-full align-middle">👥 {c.angler_name || "Begleiter"}</span>
+                        <span className="ml-2 inline-flex items-center gap-1 text-xs bg-yellow-600/25 text-yellow-300 px-2 py-0.5 rounded-full align-middle">
+                          <Users className="w-3 h-3" /> {c.angler_name || "Begleiter"}
+                        </span>
                       )}
                     </p>
-                    <p className="text-gray-400 text-sm">
-                      {c.length_cm ? `📏 ${c.length_cm} cm` : ""}
-                      {c.weight_g ? `  ⚖️ ${c.weight_g} g` : ""}
-                    </p>
+                    <div className="flex items-center gap-3 text-gray-400 text-sm mt-0.5">
+                      {c.length_cm ? <span className="flex items-center gap-1"><Ruler className="w-3.5 h-3.5" strokeWidth={1.75} /> {c.length_cm} cm</span> : null}
+                      {c.weight_g ? <span className="flex items-center gap-1"><Scale className="w-3.5 h-3.5" strokeWidth={1.75} /> {c.weight_g} g</span> : null}
+                    </div>
                   </div>
                   <span className={`text-xs px-2 py-1 rounded-full ${
                     c.status === "Zurückgesetzt"
@@ -486,19 +494,19 @@ function CatchesContent() {
                   </span>
                 </div>
 
-                {getLocation(c) && <p className="text-gray-400 text-sm">📍 {getLocation(c)}</p>}
+                {getLocation(c) && <p className="text-gray-400 text-sm flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" strokeWidth={1.75} /> {getLocation(c)}</p>}
 
-                <div className="flex flex-wrap gap-3 text-sm text-gray-400">
-                  {c.method && <span>🎣 {c.method}</span>}
-                  {c.bait && <span>🪱 {c.bait}</span>}
-                  {c.water_temp && <span>💧 {c.water_temp}°C Wasser</span>}
-                  {c.temperature && <span>🌡️ {c.temperature}°C Luft</span>}
-                  {c.pressure && <span>💨 {c.pressure} hPa</span>}
-                  {c.weather && <span>🌦️ {c.weather}</span>}
+                <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-gray-400">
+                  {c.method && <span className="flex items-center gap-1"><Fish className="w-3.5 h-3.5" strokeWidth={1.75} /> {c.method}</span>}
+                  {c.bait && <span className="text-gray-500">{c.bait}</span>}
+                  {c.water_temp && <span className="flex items-center gap-1"><Droplet className="w-3.5 h-3.5" strokeWidth={1.75} /> {c.water_temp}°C Wasser</span>}
+                  {c.temperature && <span className="flex items-center gap-1"><Thermometer className="w-3.5 h-3.5" strokeWidth={1.75} /> {c.temperature}°C Luft</span>}
+                  {c.pressure && <span className="flex items-center gap-1"><Wind className="w-3.5 h-3.5" strokeWidth={1.75} /> {c.pressure} hPa</span>}
+                  {c.weather && <span className="flex items-center gap-1"><Cloud className="w-3.5 h-3.5" strokeWidth={1.75} /> {c.weather}</span>}
                 </div>
 
                 {c.latitude && c.longitude && (
-                  <p className="text-gray-600 text-xs">🛰️ {Number(c.latitude).toFixed(5)}, {Number(c.longitude).toFixed(5)}</p>
+                  <p className="text-gray-600 text-xs flex items-center gap-1.5"><Satellite className="w-3 h-3" strokeWidth={1.75} /> {Number(c.latitude).toFixed(5)}, {Number(c.longitude).toFixed(5)}</p>
                 )}
 
                 {c.notes && <p className="text-gray-500 text-sm italic">"{c.notes}"</p>}
@@ -506,20 +514,20 @@ function CatchesContent() {
                 <p className="text-gray-600 text-xs">{formatTime(c.created_at)}</p>
 
                 <div className="flex gap-2 pt-1">
-                  <button onClick={() => startEdit(c)} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-xl text-sm transition">
-                    ✏️ Bearbeiten
+                  <button onClick={() => startEdit(c)} className="flex-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 py-2 rounded-xl text-sm transition flex items-center justify-center gap-2">
+                    <Pencil className="w-4 h-4" /> Bearbeiten
                   </button>
-                  <button onClick={() => deleteCatch(c.id)} className="flex-1 bg-red-600/20 hover:bg-red-600/40 text-red-400 py-2 rounded-xl text-sm transition">
-                    🗑️ Löschen
+                  <button onClick={() => deleteCatch(c.id)} className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 py-2 rounded-xl text-sm transition flex items-center justify-center gap-2">
+                    <Trash2 className="w-4 h-4" /> Löschen
                   </button>
                 </div>
 
                 {c.latitude && c.longitude && (
                   <button
                     onClick={() => openInMaps(c.latitude, c.longitude, c.fish)}
-                    className="w-full bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 py-2 rounded-xl text-sm transition"
+                    className="w-full bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 border border-teal-500/20 py-2 rounded-xl text-sm transition flex items-center justify-center gap-2"
                   >
-                    🗺️ In Maps öffnen
+                    <Map className="w-4 h-4" /> In Maps öffnen
                   </button>
                 )}
               </>

@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { Fish, User, Users, Save, Camera, X } from "lucide-react";
 
 export default function NewCatchPage() {
   const router = useRouter();
@@ -221,8 +222,7 @@ export default function NewCatchPage() {
     router.push("/");
   };
 
-  const inputClass = "w-full bg-gray-800 text-white border border-gray-700 rounded-xl p-3 placeholder-gray-600";
-  const labelClass = "text-gray-400 text-sm";
+  const inputClass = "w-full bg-gray-800 text-white border border-gray-700 rounded-xl px-4 py-3.5 text-[15px] placeholder-gray-500 focus:border-teal-500 focus:outline-none transition";
 
   const formatSessionLabel = (s: any) => {
     const date = new Date(s.start_time + "Z").toLocaleString("de-DE", {
@@ -234,202 +234,175 @@ export default function NewCatchPage() {
   };
 
   return (
-    <div className="p-4 max-w-xl mx-auto space-y-5">
+    <div className="p-4 max-w-xl mx-auto space-y-4">
 
-      <div className="pt-4">
-        <h1 className="text-2xl font-bold text-white">🐟 Neuer Fang</h1>
-        <p className="text-gray-400 text-sm">GPS + Wetter werden automatisch erfasst 🌦️📍</p>
+      <div className="pt-4 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center shrink-0">
+          <Fish className="w-5 h-5 text-teal-400" strokeWidth={1.75} />
+        </div>
+        <div>
+          <h1 className="text-2xl font-semibold text-white tracking-tight">Neuer Fang</h1>
+          <p className="text-gray-400 text-sm">GPS + Wetter werden automatisch erfasst</p>
+        </div>
       </div>
 
       {/* Wer hat gefangen? – Begleiter-Fänge zählen nicht in die eigene Statistik */}
-      <div className="space-y-2">
-        <label className={labelClass}>Wer hat gefangen?</label>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => { setIsForeign(false); setAnglerName(""); setAddingNewAngler(false); }}
-            className={`py-3 rounded-xl text-sm font-semibold transition ${!isForeign ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400 border border-gray-700"}`}
-          >
-            🙋 Ich
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsForeign(true)}
-            className={`py-3 rounded-xl text-sm font-semibold transition ${isForeign ? "bg-yellow-600 text-white" : "bg-gray-800 text-gray-400 border border-gray-700"}`}
-          >
-            👥 Begleiter
-          </button>
-        </div>
-
-        {isForeign && (
-          <div className="space-y-2 pt-1">
-            {knownAnglers.length > 0 && !addingNewAngler ? (
-              <select
-                value={anglerName}
-                onChange={(e) => {
-                  if (e.target.value === "__new__") { setAddingNewAngler(true); setAnglerName(""); }
-                  else setAnglerName(e.target.value);
-                }}
-                className={inputClass}
-              >
-                <option value="">Angler wählen…</option>
-                {knownAnglers.map((n) => <option key={n} value={n}>{n}</option>)}
-                <option value="__new__">➕ Neuer Angler…</option>
-              </select>
-            ) : (
-              <div className="flex gap-2">
-                <input
-                  value={anglerName}
-                  onChange={(e) => setAnglerName(e.target.value)}
-                  placeholder="Name des Begleiters"
-                  className={inputClass}
-                />
-                {knownAnglers.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => { setAddingNewAngler(false); setAnglerName(""); }}
-                    className="px-3 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-xl text-sm whitespace-nowrap"
-                  >
-                    ↩ Liste
-                  </button>
-                )}
-              </div>
-            )}
-            <p className="text-yellow-500/80 text-xs">⚠️ Dieser Fang zählt nicht in deine Statistik.</p>
-          </div>
-        )}
-      </div>
-
-      {/* Session wählen – optional */}
-      <div className="space-y-2">
-        <label className={labelClass}>Session (optional)</label>
-        <select
-          onChange={(e) => setSelectedSessionId(e.target.value ? Number(e.target.value) : null)}
-          className={inputClass}
-          defaultValue={activeSessionId?.toString() || ""}
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => { setIsForeign(false); setAnglerName(""); setAddingNewAngler(false); }}
+          className={`py-3.5 rounded-xl text-sm font-medium transition flex items-center justify-center gap-2 ${!isForeign ? "bg-teal-600 text-white" : "bg-gray-800 text-gray-400 border border-gray-700"}`}
         >
-          <option value="">Kein Session</option>
-          {activeSessionId && (
-            <option value={activeSessionId}>Aktive Session</option>
-          )}
-          {sessions.map((s) => (
-            <option key={s.id} value={s.id}>{formatSessionLabel(s)}</option>
-          ))}
-        </select>
+          <User className="w-4 h-4" /> Mein Fang
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsForeign(true)}
+          className={`py-3.5 rounded-xl text-sm font-medium transition flex items-center justify-center gap-2 ${isForeign ? "bg-yellow-600 text-white" : "bg-gray-800 text-gray-400 border border-gray-700"}`}
+        >
+          <Users className="w-4 h-4" /> Begleiter
+        </button>
       </div>
 
-      <div className="space-y-2">
-        <label className={labelClass}>Zeitpunkt (optional – leer = jetzt)</label>
+      {isForeign && (
+        <div className="space-y-2">
+          {knownAnglers.length > 0 && !addingNewAngler ? (
+            <select
+              value={anglerName}
+              onChange={(e) => {
+                if (e.target.value === "__new__") { setAddingNewAngler(true); setAnglerName(""); }
+                else setAnglerName(e.target.value);
+              }}
+              className={inputClass}
+            >
+              <option value="">Angler wählen…</option>
+              {knownAnglers.map((n) => <option key={n} value={n}>{n}</option>)}
+              <option value="__new__">➕ Neuer Angler…</option>
+            </select>
+          ) : (
+            <div className="flex gap-2">
+              <input
+                value={anglerName}
+                onChange={(e) => setAnglerName(e.target.value)}
+                placeholder="Name des Begleiters"
+                className={inputClass}
+              />
+              {knownAnglers.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => { setAddingNewAngler(false); setAnglerName(""); }}
+                  className="px-4 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-xl text-sm whitespace-nowrap"
+                >
+                  Liste
+                </button>
+              )}
+            </div>
+          )}
+          <p className="text-yellow-500/80 text-xs">Dieser Fang zählt nicht in deine Statistik.</p>
+        </div>
+      )}
+
+      {/* Session – optional */}
+      <select
+        onChange={(e) => setSelectedSessionId(e.target.value ? Number(e.target.value) : null)}
+        className={inputClass}
+        defaultValue={activeSessionId?.toString() || ""}
+      >
+        <option value="">Ohne Session</option>
+        {activeSessionId && (
+          <option value={activeSessionId}>Aktive Session</option>
+        )}
+        {sessions.map((s) => (
+          <option key={s.id} value={s.id}>{formatSessionLabel(s)}</option>
+        ))}
+      </select>
+
+      {/* Zeitpunkt – einziges Feld mit Mini-Label (datetime-local kann keinen Platzhalter) */}
+      <div className="space-y-1.5">
+        <label className="text-gray-500 text-xs px-1">Zeitpunkt · leer = jetzt</label>
         <input type="datetime-local" value={manualTime} onChange={(e) => setManualTime(e.target.value)} className={inputClass} />
       </div>
 
-      <div className="space-y-2">
-        <label className={labelClass}>Fischart</label>
-        <select onChange={(e) => handleFishChange(e.target.value)} className={inputClass}>
-          <option value="">Fisch wählen</option>
-          <option>Forelle</option>
-          <option>Karpfen</option>
-          <option>Äsche</option>
-          <option>Bachsaibling</option>
-          <option>Seesaibling</option>
-          <option>Felchen</option>
-          <option>Hecht</option>
-          <option>Wels</option>
-          <option>Zander</option>
-          <option>Barsch</option>
-          <option>Rapfen</option>
-          <option>Schleie</option>
-          <option>Brasse</option>
-          <option>Rotauge</option>
-          <option>Rotfeder</option>
-          <option>Nase</option>
-          <option>Barbe</option>
-          <option>Döbel</option>
-          <option>Maifisch</option>
-          <option>Aal</option>
-          <option>Sonstiges</option>
-        </select>
-      </div>
+      {/* Fischart */}
+      <select onChange={(e) => handleFishChange(e.target.value)} className={inputClass} defaultValue="">
+        <option value="">Fischart wählen</option>
+        <option>Forelle</option>
+        <option>Karpfen</option>
+        <option>Äsche</option>
+        <option>Bachsaibling</option>
+        <option>Seesaibling</option>
+        <option>Felchen</option>
+        <option>Hecht</option>
+        <option>Wels</option>
+        <option>Zander</option>
+        <option>Barsch</option>
+        <option>Rapfen</option>
+        <option>Schleie</option>
+        <option>Brasse</option>
+        <option>Rotauge</option>
+        <option>Rotfeder</option>
+        <option>Nase</option>
+        <option>Barbe</option>
+        <option>Döbel</option>
+        <option>Maifisch</option>
+        <option>Aal</option>
+        <option>Sonstiges</option>
+      </select>
 
       {subFishOptions.length > 0 && (
-        <div className="space-y-2">
-          <label className={labelClass}>Unterart</label>
-          <select onChange={(e) => setSubFish(e.target.value)} className={inputClass}>
-            {subFishOptions.map((f) => <option key={f}>{f}</option>)}
-          </select>
-        </div>
+        <select onChange={(e) => setSubFish(e.target.value)} className={inputClass} defaultValue="">
+          <option value="">Unterart wählen</option>
+          {subFishOptions.map((f) => <option key={f}>{f}</option>)}
+        </select>
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <label className={labelClass}>Länge (cm)</label>
-          <input placeholder="z.B. 45" type="number" onChange={(e) => setLength(e.target.value)} className={inputClass} />
-        </div>
-        <div className="space-y-2">
-          <label className={labelClass}>Gewicht (g)</label>
-          <input placeholder="z.B. 1200" type="number" onChange={(e) => setWeight(e.target.value)} className={inputClass} />
-        </div>
+        <input placeholder="Länge (cm)" type="number" onChange={(e) => setLength(e.target.value)} className={inputClass} />
+        <input placeholder="Gewicht (g)" type="number" onChange={(e) => setWeight(e.target.value)} className={inputClass} />
       </div>
 
-      <div className="space-y-2">
-        <label className={labelClass}>Angelart</label>
-        <select onChange={(e) => setMethod(e.target.value)} className={inputClass}>
-          <option value="">Angelart wählen</option>
-          <option>Spinnfischen</option>
-          <option>Grund</option>
-          <option>Pose</option>
-          <option>Fliege</option>
-        </select>
-      </div>
+      {/* Angelart */}
+      <select onChange={(e) => setMethod(e.target.value)} className={inputClass} defaultValue="">
+        <option value="">Angelart wählen</option>
+        <option>Spinnfischen</option>
+        <option>Grund</option>
+        <option>Pose</option>
+        <option>Fliege</option>
+      </select>
 
-      <div className="space-y-2">
-        <label className={labelClass}>Köder Kategorie</label>
-        <select onChange={(e) => handleBaitCategoryChange(e.target.value)} className={inputClass}>
-          <option value="">Köder wählen</option>
-          <option>Fliege</option>
-          <option>Lebendköder</option>
-          <option>Kunstköder</option>
-        </select>
-      </div>
+      {/* Köderart */}
+      <select onChange={(e) => handleBaitCategoryChange(e.target.value)} className={inputClass} defaultValue="">
+        <option value="">Köderart wählen</option>
+        <option>Fliege</option>
+        <option>Lebendköder</option>
+        <option>Kunstköder</option>
+      </select>
 
       {baitOptions.length > 0 && (
-        <div className="space-y-2">
-          <label className={labelClass}>Köder</label>
-          <select onChange={(e) => setBait(e.target.value)} className={inputClass}>
-            {baitOptions.map((b) => <option key={b}>{b}</option>)}
-          </select>
-        </div>
+        <select onChange={(e) => setBait(e.target.value)} className={inputClass} defaultValue="">
+          <option value="">Köder wählen</option>
+          {baitOptions.map((b) => <option key={b}>{b}</option>)}
+        </select>
       )}
 
-      <div className="space-y-2">
-        <label className={labelClass}>Status</label>
-        <select onChange={(e) => setStatus(e.target.value)} className={inputClass}>
-          <option value="">Status wählen</option>
-          <option>Entnommen</option>
-          <option>Zurückgesetzt</option>
-        </select>
-      </div>
+      {/* Status */}
+      <select onChange={(e) => setStatus(e.target.value)} className={inputClass} defaultValue="">
+        <option value="">Status wählen</option>
+        <option>Entnommen</option>
+        <option>Zurückgesetzt</option>
+      </select>
 
-      <div className="space-y-2">
-        <label className={labelClass}>Stelle (optional)</label>
-        <input placeholder="z.B. Unter der Brücke" onChange={(e) => setLocationDetail(e.target.value)} className={inputClass} />
-      </div>
+      <input placeholder="Stelle (z.B. unter der Brücke)" onChange={(e) => setLocationDetail(e.target.value)} className={inputClass} />
 
-      <div className="space-y-2">
-        <label className={labelClass}>Wassertemperatur (°C)</label>
-        <input placeholder="z.B. 14" type="number" onChange={(e) => setWaterTemp(e.target.value)} className={inputClass} />
-      </div>
+      <input placeholder="Wassertemperatur (°C)" type="number" onChange={(e) => setWaterTemp(e.target.value)} className={inputClass} />
 
-      <div className="space-y-2">
-        <label className={labelClass}>Besonderheiten</label>
-        <textarea placeholder="z.B. Schöner Fisch, direkt am Ufer gefangen..." onChange={(e) => setNotes(e.target.value)} rows={3} className={inputClass} />
-      </div>
+      <textarea placeholder="Besonderheiten / Notizen…" onChange={(e) => setNotes(e.target.value)} rows={3} className={inputClass} />
 
+      {/* Foto */}
       <div className="space-y-2">
-        <label className={labelClass}>Foto (optional)</label>
         <label className="w-full bg-gray-800 border border-gray-700 border-dashed rounded-xl p-6 flex flex-col items-center gap-2 cursor-pointer hover:bg-gray-700 transition">
-          <span className="text-3xl">📸</span>
-          <span className="text-gray-400 text-sm">Foto aufnehmen oder aus Galerie wählen</span>
+          <Camera className="w-7 h-7 text-gray-400" strokeWidth={1.5} />
+          <span className="text-gray-300 text-sm">Foto aufnehmen oder wählen</span>
           <span className="text-gray-600 text-xs">wird automatisch komprimiert</span>
           <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
         </label>
@@ -439,9 +412,9 @@ export default function NewCatchPage() {
             <img src={imagePreview} alt="Vorschau" className="w-full rounded-xl object-cover max-h-64" />
             <button
               onClick={() => { setImage(null); setImagePreview(null); }}
-              className="absolute top-2 right-2 bg-red-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm"
+              className="absolute top-2 right-2 bg-red-600 text-white rounded-full w-7 h-7 flex items-center justify-center"
             >
-              ✕
+              <X className="w-4 h-4" />
             </button>
           </div>
         )}
@@ -450,9 +423,9 @@ export default function NewCatchPage() {
       <button
         onClick={handleSubmit}
         disabled={saving}
-        className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-bold py-4 rounded-2xl text-lg transition"
+        className="w-full bg-teal-600 hover:bg-teal-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-semibold py-4 rounded-2xl text-lg transition flex items-center justify-center gap-2"
       >
-        {saving ? "⏳ GPS + Wetter werden erfasst..." : "💾 Fang speichern"}
+        <Save className="w-5 h-5" /> {saving ? "GPS + Wetter werden erfasst…" : "Fang speichern"}
       </button>
 
     </div>

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
+import { ArrowLeft, Users } from "lucide-react";
 
 const MapView = dynamic(() => import("../components/MapView"), { ssr: false });
 
@@ -37,16 +38,16 @@ export default function MapPage() {
   return (
     <div className="flex flex-col h-screen bg-gray-950">
       <div className="p-4 flex items-center gap-3 border-b border-gray-800">
-        <button onClick={() => router.back()} className="text-gray-400 hover:text-white transition">
-          ← Zurück
+        <button onClick={() => router.back()} className="text-gray-400 hover:text-white transition flex items-center gap-1">
+          <ArrowLeft className="w-5 h-5" /> Zurück
         </button>
-        <h1 className="text-white font-bold text-lg">🗺️ Fangkarte</h1>
+        <h1 className="text-white font-semibold text-lg">Fangkarte</h1>
         {foreignCatches.length > 0 && (
           <button
             onClick={() => setShowForeign((v) => !v)}
-            className={`ml-auto text-xs px-3 py-1 rounded-full transition ${showForeign ? "bg-yellow-600 text-white" : "bg-gray-800 text-gray-400 border border-gray-700"}`}
+            className={`ml-auto inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full transition ${showForeign ? "bg-yellow-600 text-white" : "bg-gray-800 text-gray-400 border border-gray-700"}`}
           >
-            👥 Begleiter {showForeign ? "an" : "aus"}
+            <Users className="w-3.5 h-3.5" /> Begleiter {showForeign ? "an" : "aus"}
           </button>
         )}
         <span className={`text-gray-400 text-sm ${foreignCatches.length > 0 ? "" : "ml-auto"}`}>{displayed.length} Fänge</span>
