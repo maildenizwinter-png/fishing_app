@@ -10,6 +10,10 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
 });
 
+// Standard-Icon explizit erzeugen. WICHTIG: niemals icon={undefined} an <Marker>
+// geben – das überschreibt Leaflets Default mit undefined und crasht (undefined.createIcon()).
+const defaultIcon = new L.Icon.Default();
+
 // Eigenes Icon für Begleiter-Fänge (gelber Pin mit 👥)
 const foreignIcon = L.divIcon({
   className: "",
@@ -39,7 +43,7 @@ export default function MapView({ catches }: { catches: any[] }) {
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       {catches.map((c) => (
-        <Marker key={c.id} position={[c.latitude, c.longitude]} icon={c.is_foreign ? foreignIcon : undefined}>
+        <Marker key={c.id} position={[c.latitude, c.longitude]} icon={c.is_foreign ? foreignIcon : defaultIcon}>
           <Popup>
             <div style={{ minWidth: "150px" }}>
               {c.is_foreign && (
