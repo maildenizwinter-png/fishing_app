@@ -1,0 +1,31 @@
+name: Supabase Keep-Alive
+
+# Verhindert, dass das Supabase-Projekt nach 7 Tagen Inaktivitaet pausiert wird,
+# indem taeglich eine kleine Anfrage an die REST-API geschickt wird.
+
+on:
+  schedule:
+    # Taeglich um 06:17 UTC. Bewusst NICHT :00, weil GitHub geplante Jobs
+    # zur vollen Stunde stark verzoegert / in die Warteschlange schiebt.
+    - cron: "17 6 * * *"
+  workflow_dispatch: {} # erlaubt manuelles Ausloesen (Tab "Actions") zum Testen
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          # Winzige SELECT-Anfrage. Zaehlt als DB-Aktivitaet und haelt das
+          # Projekt wach. RLS filtert alles weg -> Antwort ist [] (HTTP 200),
+          # es werden also keinerlei Daten preisgegeben.
+          # --fail laesst den Job fehlschlagen (=> GitHub-Mail), falls der
+          # Ping nicht klappt, damit du merkst wenn das Keep-Alive kaputt ist.
+          curl --fail --silent --show-error \
+            "${SUPABASE_URL}/rest/v1/profiles?select=id&limit=1" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}"
+          echo "Keep-alive ping ok."
