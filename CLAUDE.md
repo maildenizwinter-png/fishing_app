@@ -134,6 +134,7 @@ git push
 → Vercel deployt automatisch nach ca. 1-2 Minuten
 
 ## Supabase Keep-Alive (verhindert Pausieren)
+Status: ✅ AKTIV (eingerichtet & erfolgreich getestet am 2026-07-27).
 Supabase Free-Tier pausiert Projekte nach 7 Tagen Inaktivität → man muss sich
 sonst manuell im Dashboard einloggen und reaktivieren.
 Gelöst per GitHub-Actions Cron-Ping (kein Vercel, kostenlos, keine App-Änderung):
