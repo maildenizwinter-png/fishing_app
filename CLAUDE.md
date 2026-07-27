@@ -133,6 +133,21 @@ git push
 ```
 → Vercel deployt automatisch nach ca. 1-2 Minuten
 
+## Supabase Keep-Alive (verhindert Pausieren)
+Supabase Free-Tier pausiert Projekte nach 7 Tagen Inaktivität → man muss sich
+sonst manuell im Dashboard einloggen und reaktivieren.
+Gelöst per GitHub-Actions Cron-Ping (kein Vercel, kostenlos, keine App-Änderung):
+- Workflow: `.github/workflows/keep-alive.yml`
+- Läuft täglich um 06:17 UTC (+ manuell via Actions-Tab, `workflow_dispatch`)
+- Macht eine winzige `SELECT`-Anfrage an die Supabase REST-API → zählt als Aktivität
+- Benötigt zwei **GitHub Repo-Secrets** (Settings → Secrets and variables → Actions):
+  - `SUPABASE_URL` = `https://iawhknrsvruweoxjdoss.supabase.co`
+  - `SUPABASE_ANON_KEY` = der publishable Anon-Key (siehe `.env.local`)
+- `curl --fail` → Job schlägt fehl (GitHub-Mail) wenn der Ping kaputt ist
+- Achtung: Ein **bereits pausiertes** Projekt weckt der Ping NICHT auf → einmalig
+  im Dashboard reaktivieren, danach hält der tägliche Ping es wach
+- GitHub deaktiviert Cron-Workflows nach 60 Tagen komplett ohne Repo-Aktivität
+
 ## Feature-Historie (chronologisch)
 1. Grundstruktur mit Dashboard, Fang-Erfassung, Session-Tracking
 2. Supabase Auth + Login/Register/Reset
