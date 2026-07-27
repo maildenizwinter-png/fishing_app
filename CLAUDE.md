@@ -65,7 +65,7 @@ middleware.ts                     DEAKTIVIERT (returns NextResponse.next())
 ### Tabellen
 - **profiles:** id (uuid, FK→auth.users), username, full_name, avatar_url, role ('user'|'admin'), created_at, updated_at
 - **sessions:** id, start_time, end_time, location, companion, temperature, pressure, weather, latitude, longitude, user_id (FK→auth.users)
-- **catches:** id, created_at, fish, sub_fish, length_cm, weight_g, method, bait, status, location_detail, water_temp, notes, image_url, session_id (NULLABLE, FK→sessions), user_id, temperature, pressure, weather, latitude, longitude
+- **catches:** id, created_at, fish, sub_fish, length_cm, weight_g, method, bait, status, location_detail, water_temp, notes, image_url, session_id (NULLABLE, FK→sessions), user_id, temperature, pressure, weather, latitude, longitude, **is_foreign** (bool, default false – Begleiter-Fang), **angler_name** (text, NULLABLE – wer gefangen hat)
 - **session_logs:** id, session_id (FK→sessions, CASCADE), created_at, latitude, longitude, temperature, pressure, weather
 
 ### Storage Buckets
@@ -119,6 +119,12 @@ CREATE TRIGGER on_auth_user_created
 - **Fang ohne Session möglich** – session_id ist NULLABLE
 - **Bilder werden komprimiert** – Fangfotos max 1200px, Avatars max 400x400
 - **Email-Templates** nutzen `{{ .TokenHash }}` + `verifyOtp({token_hash, type})` Pattern
+- **Begleiter-Fänge** (`is_foreign = true`): Fänge von Angel-Begleitern. Gehören dem
+  eingeloggten User (`user_id` = ich), sind aber als fremd markiert. Werden **überall**
+  aus der eigenen Auswertung ausgeschlossen (Fisch-Zähler, „Letzter Fang", 9 Charts).
+  Separate Auswertung in `/stats` (Sektion „👥 Begleiter-Auswertung") + Filter in
+  `/catches` (Meine/Begleiter/Alle) + Umschalter auf der Karte. `angler_name` wird beim
+  Erfassen aus bereits vergebenen Namen vorgeschlagen (gleiche Schreibweise → matchbar).
 
 ## Bekannte Themen / Offene Punkte
 - Impersonate-Banner spinnt manchmal (kommt nicht immer, bleibt nach Logout sichtbar) – ist noch nicht sauber gefixt
@@ -161,6 +167,7 @@ Gelöst per GitHub-Actions Cron-Ping (kein Vercel, kostenlos, keine App-Änderun
 9. Selbst-Registrierung
 10. Profilbild-Upload + Passwort-Reset im Profil
 11. "Zum Fang"-Navigation von Karte zu Fänge-Seite
+12. Begleiter-Fänge: fremde Fänge erfassen (is_foreign/angler_name), getrennt auswerten
 
 ## Wichtig für nächste Iteration
 - **Immer** aktuellen Code der zu ändernden Datei lesen (kein Blind-Editieren)
