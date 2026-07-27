@@ -8,6 +8,28 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [resetMsg, setResetMsg] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+
+  const handleForgotPassword = async () => {
+    setError("");
+    setResetMsg("");
+    if (!email) {
+      setError("Bitte zuerst deine Email oben eingeben ☝️");
+      return;
+    }
+    setResetLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setResetLoading(false);
+    if (error) {
+      setError("Reset-Mail konnte nicht gesendet werden: " + error.message);
+      return;
+    }
+    // Aus Datenschutzgründen gibt Supabase auch bei unbekannter Email Erfolg zurück
+    setResetMsg("📧 Falls ein Konto zu dieser Email existiert, ist ein Reset-Link unterwegs. Schau auch im Spam nach.");
+  };
 
   const handleLogin = async () => {
     setLoading(true);
@@ -69,6 +91,10 @@ export default function LoginPage() {
             <p className="text-red-400 text-sm">{error}</p>
           )}
 
+          {resetMsg && (
+            <p className="text-green-400 text-sm">{resetMsg}</p>
+          )}
+
           <button
             onClick={handleLogin}
             disabled={loading}
@@ -76,6 +102,16 @@ export default function LoginPage() {
           >
             {loading ? "⏳ Anmelden..." : "🔑 Anmelden"}
           </button>
+
+          <div className="text-center">
+            <button
+              onClick={handleForgotPassword}
+              disabled={resetLoading}
+              className="text-gray-400 hover:text-gray-200 text-sm transition disabled:text-gray-600"
+            >
+              {resetLoading ? "⏳ Sende Reset-Link..." : "Passwort vergessen?"}
+            </button>
+          </div>
 
           <div className="text-center pt-2">
             <p className="text-gray-500 text-sm">
