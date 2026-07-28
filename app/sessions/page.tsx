@@ -2,10 +2,12 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import Link from "next/link";
-import { Waves, User, Clock, Fish, Cloud, Thermometer, Pencil, Trash2, Save, MapPin, Flag } from "lucide-react";
+import { pendingSessions } from "../../lib/offlineDb";
+import { Waves, User, Clock, Fish, Cloud, Thermometer, Pencil, Trash2, Save, MapPin, Flag, CloudUpload } from "lucide-react";
 
 export default function SessionsPage() {
   const [sessions, setSessions] = useState<any[]>([]);
+  const [pending, setPending] = useState<any[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editLocation, setEditLocation] = useState("");
   const [editCompanion, setEditCompanion] = useState("");
@@ -13,17 +15,25 @@ export default function SessionsPage() {
   const [editEndTime, setEditEndTime] = useState("");
 
   const loadSessions = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    const { data } = await supabase
-      .from("sessions")
-      .select("*, catches(count)")
-      .eq("user_id", user?.id)
-      .order("start_time", { ascending: false });
-    setSessions(data || []);
+    try { setPending(await pendingSessions()); } catch {}
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data } = await supabase
+        .from("sessions")
+        .select("*, catches(count)")
+        .eq("user_id", user?.id)
+        .order("start_time", { ascending: false });
+      setSessions(data || []);
+    } catch {
+      // offline: nur Offline-Sessions anzeigen
+    }
   };
 
   useEffect(() => {
     loadSessions();
+    const onChange = () => loadSessions();
+    window.addEventListener("outbox-changed", onChange);
+    return () => window.removeEventListener("outbox-changed", onChange);
   }, []);
 
   const formatTime = (date: string) => {
@@ -94,6 +104,24 @@ export default function SessionsPage() {
           <p className="text-gray-400 text-sm">{sessions.length} Sessions gesamt</p>
         </div>
       </div>
+
+      {pending.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-amber-400 text-xs uppercase tracking-wider flex items-center gap-1.5">
+            <CloudUpload className="w-3.5 h-3.5" /> Offline gestartet – noch nicht synchronisiert
+          </p>
+          {pending.map((p) => {
+            const pl = p.payload || {};
+            return (
+              <div key={`local-${p.id}`} className="bg-gray-900 border border-amber-600/40 rounded-2xl p-4 space-y-1.5">
+                <p className="text-white font-semibold text-lg">{pl.location || "-"}</p>
+                <p className="text-gray-400 text-sm flex items-center gap-1.5"><User className="w-3.5 h-3.5" strokeWidth={1.75} /> {pl.companion || "Alleine"}</p>
+                <p className="text-amber-400 text-xs flex items-center gap-1.5"><CloudUpload className="w-3.5 h-3.5" /> wird bei Verbindung synchronisiert</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {sessions.map((s) => (
         <div key={s.id} className="bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-3">

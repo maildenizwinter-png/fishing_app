@@ -3,13 +3,15 @@ import { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 import { getUserFilter } from "../../lib/getUserId";
-import { Fish, Pencil, Trash2, Save, Map, Users, X, MapPin, Ruler, Scale, Droplet, Thermometer, Wind, Cloud, Satellite } from "lucide-react";
+import { pendingCatches } from "../../lib/offlineDb";
+import { Fish, Pencil, Trash2, Save, Map, Users, X, MapPin, Ruler, Scale, Droplet, Thermometer, Wind, Cloud, Satellite, CloudUpload } from "lucide-react";
 
 function CatchesContent() {
   const searchParams = useSearchParams();
   const highlightId = searchParams.get("id");
 
   const [catches, setCatches] = useState<any[]>([]);
+  const [pending, setPending] = useState<any[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [highlightedId, setHighlightedId] = useState<number | null>(null);
   const catchRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
@@ -43,24 +45,31 @@ function CatchesContent() {
   const [filterAngler, setFilterAngler] = useState<"mine" | "foreign" | "all">("mine");
 
   const load = async () => {
-    const filter = await getUserFilter();
+    // Offline erfasste Fänge zuerst (funktioniert auch ohne Netz)
+    try { setPending(await pendingCatches()); } catch {}
 
-    let query = supabase
-      .from("catches")
-      .select("*, sessions(location)")
-      .order("created_at", { ascending: false });
-
-    if (filter.mode === "user") {
-      if (!filter.userId) return;
-      query = query.eq("user_id", filter.userId);
+    try {
+      const filter = await getUserFilter();
+      let query = supabase
+        .from("catches")
+        .select("*, sessions(location)")
+        .order("created_at", { ascending: false });
+      if (filter.mode === "user") {
+        if (!filter.userId) return;
+        query = query.eq("user_id", filter.userId);
+      }
+      const { data } = await query;
+      setCatches(data || []);
+    } catch {
+      // offline / kein Netz: nur die Offline-Fänge anzeigen
     }
-
-    const { data } = await query;
-    setCatches(data || []);
   };
 
   useEffect(() => {
     load();
+    const onChange = () => load();
+    window.addEventListener("outbox-changed", onChange);
+    return () => window.removeEventListener("outbox-changed", onChange);
   }, []);
 
   useEffect(() => {
@@ -317,7 +326,35 @@ function CatchesContent() {
         )}
       </div>
 
-      {filtered.length === 0 && (
+      {pending.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-amber-400 text-xs uppercase tracking-wider flex items-center gap-1.5">
+            <CloudUpload className="w-3.5 h-3.5" /> Offline erfasst – noch nicht synchronisiert
+          </p>
+          {pending.map((p) => {
+            const pl = p.payload || {};
+            const img = p.photoBlob ? URL.createObjectURL(p.photoBlob) : null;
+            return (
+              <div key={`local-${p.id}`} className="bg-gray-900 border border-amber-600/40 rounded-2xl overflow-hidden">
+                {img && <img src={img} alt={pl.fish || ""} className="w-full h-40 object-cover" />}
+                <div className="p-4 space-y-1.5">
+                  <p className="text-white font-semibold">
+                    {pl.fish || "-"}
+                    {pl.sub_fish && <span className="text-gray-400 font-normal text-sm ml-2">{pl.sub_fish}</span>}
+                  </p>
+                  <div className="flex items-center gap-3 text-gray-400 text-sm">
+                    {pl.length_cm ? <span className="flex items-center gap-1"><Ruler className="w-3.5 h-3.5" strokeWidth={1.75} /> {pl.length_cm} cm</span> : null}
+                    {pl.weight_g ? <span className="flex items-center gap-1"><Scale className="w-3.5 h-3.5" strokeWidth={1.75} /> {pl.weight_g} g</span> : null}
+                  </div>
+                  <p className="text-amber-400 text-xs flex items-center gap-1.5"><CloudUpload className="w-3.5 h-3.5" /> wird bei Verbindung synchronisiert</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {filtered.length === 0 && pending.length === 0 && (
         <p className="text-gray-500 text-sm">Keine Fänge für diesen Filter.</p>
       )}
 
