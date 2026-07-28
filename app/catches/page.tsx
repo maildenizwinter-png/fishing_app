@@ -3,7 +3,7 @@ import { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 import { getUserFilter } from "../../lib/getUserId";
-import { pendingCatches } from "../../lib/offlineDb";
+import { pendingCatches, cacheSet, cacheGet } from "../../lib/offlineDb";
 import { Fish, Pencil, Trash2, Save, Map, Users, X, MapPin, Ruler, Scale, Droplet, Thermometer, Wind, Cloud, Satellite, CloudUpload } from "lucide-react";
 
 function CatchesContent() {
@@ -50,18 +50,20 @@ function CatchesContent() {
 
     try {
       const filter = await getUserFilter();
+      if (filter.mode === "user" && !filter.userId) throw new Error("no user");
       let query = supabase
         .from("catches")
         .select("*, sessions(location)")
         .order("created_at", { ascending: false });
-      if (filter.mode === "user") {
-        if (!filter.userId) return;
-        query = query.eq("user_id", filter.userId);
-      }
-      const { data } = await query;
+      if (filter.mode === "user") query = query.eq("user_id", filter.userId!);
+      const { data, error } = await query;
+      if (error) throw error;
       setCatches(data || []);
+      cacheSet("catches", data || []);
     } catch {
-      // offline / kein Netz: nur die Offline-Fänge anzeigen
+      // offline / kein Netz: zuletzt gespiegelte Fänge aus dem Cache
+      const cached = await cacheGet<any[]>("catches");
+      if (cached) setCatches(cached);
     }
   };
 

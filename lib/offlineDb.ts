@@ -18,12 +18,23 @@ export interface OutboxItem {
   createdAt: string;
 }
 
+interface KV {
+  key: string;
+  value: any;
+}
+
 class CatchOfflineDB extends Dexie {
   outbox!: Table<OutboxItem, number>;
+  kv!: Table<KV, string>;
   constructor() {
     super("catch-offline");
     this.version(1).stores({
       outbox: "++id, type, status, createdAt",
+    });
+    // Additive Migration: Cache-Store für Offline-Lesen (Outbox bleibt erhalten)
+    this.version(2).stores({
+      outbox: "++id, type, status, createdAt",
+      kv: "key",
     });
   }
 }
@@ -98,4 +109,22 @@ export async function markSynced(id: number, serverId?: number) {
 
 export async function markError(id: number, msg: string) {
   await db().outbox.update(id, { status: "error", errorMsg: msg });
+}
+
+// Cache für Offline-Lesen (zuletzt geladene Server-Daten spiegeln)
+export async function cacheSet(key: string, value: any): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    await db().kv.put({ key, value });
+  } catch {}
+}
+
+export async function cacheGet<T = any>(key: string): Promise<T | null> {
+  if (typeof window === "undefined") return null;
+  try {
+    const row = await db().kv.get(key);
+    return (row?.value as T) ?? null;
+  } catch {
+    return null;
+  }
 }

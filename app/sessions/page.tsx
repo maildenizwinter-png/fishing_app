@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import Link from "next/link";
-import { pendingSessions } from "../../lib/offlineDb";
+import { pendingSessions, cacheSet, cacheGet } from "../../lib/offlineDb";
 import { Waves, User, Clock, Fish, Cloud, Thermometer, Pencil, Trash2, Save, MapPin, Flag, CloudUpload } from "lucide-react";
 
 export default function SessionsPage() {
@@ -18,14 +18,19 @@ export default function SessionsPage() {
     try { setPending(await pendingSessions()); } catch {}
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const { data } = await supabase
+      if (!user) throw new Error("no user");
+      const { data, error } = await supabase
         .from("sessions")
         .select("*, catches(count)")
-        .eq("user_id", user?.id)
+        .eq("user_id", user.id)
         .order("start_time", { ascending: false });
+      if (error) throw error;
       setSessions(data || []);
+      cacheSet("sessions", data || []);
     } catch {
-      // offline: nur Offline-Sessions anzeigen
+      // offline: zuletzt gespiegelte Sessions aus dem Cache
+      const cached = await cacheGet<any[]>("sessions");
+      if (cached) setSessions(cached);
     }
   };
 
