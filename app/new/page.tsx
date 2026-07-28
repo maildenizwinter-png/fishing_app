@@ -43,11 +43,10 @@ export default function NewCatchPage() {
 
   useEffect(() => {
     const storedId = localStorage.getItem("activeSessionId");
-    if (storedId) {
-      setActiveSessionId(Number(storedId));
-    } else {
-      loadSessions();
-    }
+    const aid = storedId ? Number(storedId) : null;
+    setActiveSessionId(aid);
+    setSelectedSessionId(aid); // aktive Session automatisch vorauswählen
+    loadSessions();
     loadKnownAnglers();
   }, []);
 
@@ -179,7 +178,7 @@ export default function NewCatchPage() {
     setSaving(true);
 
     const { data: { user } } = await supabase.auth.getUser();
-    const sessionId = activeSessionId || selectedSessionId || null;
+    const sessionId = selectedSessionId || null;
 
     // GPS + Wetter immer holen
     const { latitude, longitude } = await getLocationData();
@@ -317,16 +316,15 @@ export default function NewCatchPage() {
 
       {/* Session – optional */}
       <select
+        value={selectedSessionId ?? ""}
         onChange={(e) => setSelectedSessionId(e.target.value ? Number(e.target.value) : null)}
         className={inputClass}
-        defaultValue={activeSessionId?.toString() || ""}
       >
         <option value="">Ohne Session</option>
-        {activeSessionId && (
-          <option value={activeSessionId}>Aktive Session</option>
-        )}
         {sessions.map((s) => (
-          <option key={s.id} value={s.id}>{formatSessionLabel(s)}</option>
+          <option key={s.id} value={s.id}>
+            {s.id === activeSessionId ? "🟢 Aktive Session – " : ""}{formatSessionLabel(s)}
+          </option>
         ))}
       </select>
 
