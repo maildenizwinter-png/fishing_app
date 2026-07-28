@@ -2,7 +2,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
-import { Fish, User, Users, Save, Camera, X } from "lucide-react";
+import { Fish, User, Users, Save, Camera, X, AlertTriangle } from "lucide-react";
+import { getFishRule, isInSchonzeit, isUntermassig, formatSchonzeit } from "../../lib/fishingRules";
 
 export default function NewCatchPage() {
   const router = useRouter();
@@ -224,6 +225,13 @@ export default function NewCatchPage() {
 
   const inputClass = "w-full bg-gray-800 text-white border border-gray-700 rounded-xl px-4 py-3.5 text-[15px] placeholder-gray-500 focus:border-teal-500 focus:outline-none transition";
 
+  // Schonzeit / Mindestmaß zum gewählten Fisch (Regelwerk Baden-Württemberg)
+  const catchDate = manualTime ? new Date(manualTime) : new Date();
+  const rule = fish && fish !== "Sonstiges" ? getFishRule(fish, subFish) : null;
+  const showRuleCard = !!fish && fish !== "Sonstiges";
+  const schonzeitAktiv = rule ? isInSchonzeit(rule, catchDate) : false;
+  const untermassig = rule ? isUntermassig(rule, length ? Number(length) : null) : false;
+
   const formatSessionLabel = (s: any) => {
     const date = new Date(s.start_time + "Z").toLocaleString("de-DE", {
       day: "2-digit", month: "2-digit",
@@ -360,6 +368,23 @@ export default function NewCatchPage() {
         <input placeholder="Länge (cm)" type="number" onChange={(e) => setLength(e.target.value)} className={inputClass} />
         <input placeholder="Gewicht (g)" type="number" onChange={(e) => setWeight(e.target.value)} className={inputClass} />
       </div>
+
+      {/* Schonzeit / Mindestmaß (Baden-Württemberg) */}
+      {showRuleCard && (
+        <div className={`rounded-xl border p-3 space-y-2 text-sm ${schonzeitAktiv || untermassig ? "border-red-500/40 bg-red-500/5" : "border-gray-800 bg-gray-900"}`}>
+          <div className="flex flex-wrap gap-x-5 gap-y-1 text-gray-400">
+            <span>Schonzeit: <span className="text-gray-200">{rule ? formatSchonzeit(rule) : "keine"}</span></span>
+            <span>Mindestmaß: <span className="text-gray-200">{rule?.mindestmassCm ? `${rule.mindestmassCm} cm` : "keins"}</span></span>
+          </div>
+          {schonzeitAktiv && (
+            <p className="text-red-400 flex items-center gap-1.5"><AlertTriangle className="w-4 h-4 shrink-0" /> In der Schonzeit — {subFish || fish} ist an diesem Datum geschont.</p>
+          )}
+          {untermassig && (
+            <p className="text-red-400 flex items-center gap-1.5"><AlertTriangle className="w-4 h-4 shrink-0" /> Untermaßig — unter {rule?.mindestmassCm} cm Mindestmaß.</p>
+          )}
+          <p className="text-gray-600 text-xs">Angaben ohne Gewähr (BW) · Vereins-/Pachtregeln können strenger sein · Erlaubnisschein prüfen.</p>
+        </div>
+      )}
 
       {/* Angelart */}
       <select onChange={(e) => setMethod(e.target.value)} className={inputClass} defaultValue="">
