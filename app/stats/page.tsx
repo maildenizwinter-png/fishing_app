@@ -5,6 +5,7 @@ import { getUserFilter } from "../../lib/getUserId";
 import * as XLSX from "xlsx";
 import { useRouter } from "next/navigation";
 import { BarChart3, Download, Map, ArrowRight } from "lucide-react";
+import WaterWatchlist from "../components/WaterWatchlist";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell
@@ -274,6 +275,9 @@ export default function StatsPage() {
           </div>
         </a>
       )}
+
+      {/* Wasserführung – Watchlist "Meine Gewässer" */}
+      <WaterWatchlist />
 
       {/* Excel Export */}
       <div className="flex gap-3">
