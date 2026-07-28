@@ -41,7 +41,30 @@ self.addEventListener("fetch", (event) => {
   } catch {
     return;
   }
-  // Nur eigene Domain cachen; alles Externe (APIs) normal durchlassen.
+
+  // Fang-Fotos aus dem Supabase-Storage cachen (fürs Offline-Fangbuch),
+  // cache-first. Antworten sind ggf. "opaque" -> trotzdem cachen.
+  if (url.hostname.endsWith(".supabase.co") && url.pathname.includes("/storage/")) {
+    event.respondWith(
+      (async () => {
+        const cached = await caches.match(req);
+        if (cached) return cached;
+        try {
+          const res = await fetch(req);
+          if (res && res.type !== "error") {
+            const cache = await caches.open(CACHE);
+            cache.put(req, res.clone());
+          }
+          return res;
+        } catch {
+          return cached || Response.error();
+        }
+      })()
+    );
+    return;
+  }
+
+  // Alles andere Externe (Supabase-Daten-API, Wetter, Open-Meteo, OSM) durchlassen.
   if (url.origin !== self.location.origin) return;
 
   // Seitenaufrufe: erst Netz, bei Ausfall aus dem Cache (Fallback: Startseite).
