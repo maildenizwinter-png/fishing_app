@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Fish } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -148,9 +147,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-sm space-y-6">
 
         <div className="text-center space-y-3">
-          <div className="w-14 h-14 rounded-2xl bg-teal-500/10 flex items-center justify-center mx-auto">
-            <Fish className="w-7 h-7 text-teal-400" strokeWidth={1.75} />
-          </div>
+          <img src="/logo.png" alt="Catch" className="w-20 h-20 mx-auto" />
           <h1 className="text-2xl font-semibold text-white tracking-tight">
             {mode === "invite" ? "Willkommen!" : "Registrieren"}
           </h1>

@@ -258,8 +258,14 @@ useEffect(() => {
         </div>
       )}
 
+      {/* Marke */}
+      <div className="pt-4 flex items-center gap-2">
+        <img src="/logo-mark.png" alt="" className="w-7 h-7" />
+        <span className="text-white font-semibold tracking-tight text-lg">Catch</span>
+      </div>
+
       {/* Header */}
-      <div className="pt-4 flex justify-between items-center">
+      <div className="flex justify-between items-center">
         <div className="space-y-0.5">
           <p className="text-gray-500 text-sm">Willkommen zurück</p>
           <h1 className="text-2xl font-semibold text-white tracking-tight">

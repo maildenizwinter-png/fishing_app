@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import Link from "next/link";
-import { Fish } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -60,10 +59,8 @@ export default function LoginPage() {
       <div className="w-full max-w-sm space-y-6">
 
         <div className="text-center space-y-3">
-          <div className="w-14 h-14 rounded-2xl bg-teal-500/10 flex items-center justify-center mx-auto">
-            <Fish className="w-7 h-7 text-teal-400" strokeWidth={1.75} />
-          </div>
-          <h1 className="text-2xl font-semibold text-white tracking-tight">Fishing App</h1>
+          <img src="/logo.png" alt="Catch" className="w-24 h-24 mx-auto" />
+          <h1 className="text-3xl font-semibold text-white tracking-tight">Catch</h1>
           <p className="text-gray-400 text-sm">Melde dich an um fortzufahren</p>
         </div>
 

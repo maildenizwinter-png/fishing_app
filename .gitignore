@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Logo-Quelldateien + Generator (generierte Assets liegen in public/ und app/)
+/_extract-logo.js
+/C7137D77-81B2-481F-BFAE-B47F93C5E0FA.PNG
+/logo mit catch ausgestanzt.png
+/logo mit catch darunter.png
+/nur logo.png
