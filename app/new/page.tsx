@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Fish, User, Users, Save, Camera, X, AlertTriangle } from "lucide-react";
 import { getFishRule, isInSchonzeit, isUntermassig, formatSchonzeit } from "../../lib/fishingRules";
 import { fetchWaterInfo } from "../../lib/water";
+import { queueCatch } from "../../lib/offlineDb";
 
 export default function NewCatchPage() {
   const router = useRouter();
@@ -177,27 +178,32 @@ export default function NewCatchPage() {
   const handleSubmit = async () => {
     setSaving(true);
 
-    const { data: { user } } = await supabase.auth.getUser();
-    const sessionId = selectedSessionId || null;
+    // User-Id offline-sicher aus der lokal gespeicherten Session lesen
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
 
-    // GPS + Wetter immer holen
+    // Session-Bezug: negativ = lokale (offline) Session, positiv = Server-Session
+    const sel = selectedSessionId;
+    const isLocalSession = sel != null && sel < 0;
+    const serverSessionId = sel != null && sel > 0 ? sel : null;
+
     const { latitude, longitude } = await getLocationData();
-    let weatherData = { temperature: null, pressure: null, weather: null };
+    const online = typeof navigator !== "undefined" ? navigator.onLine : true;
+
+    let weatherData: any = { temperature: null, pressure: null, weather: null };
     let riverDischarge: number | null = null;
-    if (latitude && longitude) {
+    if (online && latitude && longitude) {
       weatherData = await getWeatherData(latitude, longitude);
       const water = await fetchWaterInfo(latitude, longitude);
       riverDischarge = water.current;
     }
 
-    const imageUrl = await uploadImage();
     const catchTime = manualTime
       ? new Date(manualTime).toISOString()
       : new Date().toISOString();
 
-    const { error } = await supabase.from("catches").insert([{
-      session_id: sessionId,
-      user_id: user?.id,
+    const basePayload: Record<string, any> = {
+      user_id: userId,
       fish,
       sub_fish: subFish,
       length_cm: length ? Number(length) : null,
@@ -208,7 +214,6 @@ export default function NewCatchPage() {
       location_detail: locationDetail,
       water_temp: waterTemp ? Number(waterTemp) : null,
       notes,
-      image_url: imageUrl,
       created_at: catchTime,
       latitude,
       longitude,
@@ -216,15 +221,39 @@ export default function NewCatchPage() {
       is_foreign: isForeign,
       angler_name: isForeign ? (anglerName.trim() || null) : null,
       ...weatherData,
-    }]);
+    };
 
-    if (error) {
-      alert("Fehler: " + error.message);
-      setSaving(false);
+    const queueOffline = async () => {
+      const payload = { ...basePayload };
+      if (serverSessionId) payload.session_id = serverSessionId;
+      await queueCatch({
+        payload,
+        localSessionId: isLocalSession ? -sel! : undefined,
+        photoBlob: image,
+        photoName: image ? `${Date.now()}.jpg` : undefined,
+      });
+      window.dispatchEvent(new Event("outbox-changed"));
+      router.push("/");
+    };
+
+    if (!online) {
+      await queueOffline();
       return;
     }
 
-    router.push("/");
+    try {
+      const imageUrl = await uploadImage();
+      const { error } = await supabase.from("catches").insert([{
+        ...basePayload,
+        session_id: serverSessionId,
+        image_url: imageUrl,
+      }]);
+      if (error) throw error;
+      router.push("/");
+    } catch {
+      // Trotz "online" fehlgeschlagen (z.B. Funkloch) -> lokal queuen statt Datenverlust
+      await queueOffline();
+    }
   };
 
   const inputClass = "w-full bg-gray-800 text-white border border-gray-700 rounded-xl px-4 py-3.5 text-[15px] placeholder-gray-500 focus:border-teal-500 focus:outline-none transition";
@@ -321,6 +350,9 @@ export default function NewCatchPage() {
         className={inputClass}
       >
         <option value="">Ohne Session</option>
+        {activeSessionId != null && activeSessionId < 0 && (
+          <option value={activeSessionId}>🟢 Aktive Session (offline)</option>
+        )}
         {sessions.map((s) => (
           <option key={s.id} value={s.id}>
             {s.id === activeSessionId ? "🟢 Aktive Session – " : ""}{formatSessionLabel(s)}

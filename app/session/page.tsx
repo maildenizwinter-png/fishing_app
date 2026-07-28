@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import { Waves, Play, CalendarPlus, MapPin, Cloud, RefreshCw, Fish, Save } from "lucide-react";
 import { fetchWaterInfo } from "../../lib/water";
+import { queueSession } from "../../lib/offlineDb";
 
 export default function SessionPage() {
   const [location, setLocation] = useState("");
@@ -20,27 +21,34 @@ export default function SessionPage() {
 
   const getEnvironmentData = async () => {
     return new Promise<any>((resolve) => {
+      if (!navigator.geolocation) {
+        resolve({});
+        return;
+      }
       navigator.geolocation.getCurrentPosition(
         async (position) => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          const base: any = { latitude: lat, longitude: lon };
+          // GPS bleibt auch offline erhalten; Wetter/Wasser nur mit Verbindung
+          if (typeof navigator !== "undefined" && !navigator.onLine) {
+            resolve(base);
+            return;
+          }
           try {
-            const lat = position.coords.latitude;
-            const lon = position.coords.longitude;
             const res = await fetch(
               `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${process.env.NEXT_PUBLIC_WEATHER_API_KEY}&units=metric`
             );
             const weatherData = await res.json();
+            base.temperature = weatherData.main?.temp;
+            base.pressure = weatherData.main?.pressure;
+            base.weather = weatherData.weather?.[0]?.main;
+          } catch {}
+          try {
             const water = await fetchWaterInfo(lat, lon);
-            resolve({
-              latitude: lat,
-              longitude: lon,
-              temperature: weatherData.main?.temp,
-              pressure: weatherData.main?.pressure,
-              weather: weatherData.weather?.[0]?.main,
-              river_discharge: water.current,
-            });
-          } catch {
-            resolve({});
-          }
+            base.river_discharge = water.current;
+          } catch {}
+          resolve(base);
         },
         () => resolve({})
       );
@@ -60,7 +68,8 @@ export default function SessionPage() {
 
     setLoading(true);
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
     const env = mode === "now" ? await getEnvironmentData() : {};
 
     const startTime = mode === "manual"
@@ -71,41 +80,62 @@ export default function SessionPage() {
       ? new Date(manualEnd).toISOString()
       : null;
 
-    const { data, error } = await supabase
-      .from("sessions")
-      .insert([{
-        start_time: startTime,
-        end_time: endTime,
-        location,
-        companion,
-        user_id: user?.id,
-        ...env,
-      }])
-      .select()
-      .single();
+    const payload: any = {
+      start_time: startTime,
+      end_time: endTime,
+      location,
+      companion,
+      user_id: userId,
+      ...env,
+    };
 
-    if (error) {
-      alert("Fehler beim Start: " + error.message);
+    const online = typeof navigator !== "undefined" ? navigator.onLine : true;
+
+    const queueOffline = async () => {
+      const outboxId = await queueSession(payload);
+      if (mode === "now") {
+        // negativer Marker = lokale (noch nicht synchronisierte) Session
+        localStorage.setItem("activeSessionId", String(-outboxId));
+      }
+      window.dispatchEvent(new Event("outbox-changed"));
       setLoading(false);
+      router.push("/");
+    };
+
+    if (!online) {
+      await queueOffline();
       return;
     }
 
-    if (mode === "now") {
-      setSessionId(data.id);
-      localStorage.setItem("activeSessionId", data.id.toString());
+    try {
+      const { data, error } = await supabase
+        .from("sessions")
+        .insert([payload])
+        .select()
+        .single();
+      if (error) throw error;
 
-      intervalRef.current = setInterval(async () => {
-        const env = await getEnvironmentData();
-        await supabase.from("session_logs").insert([{
-          session_id: data.id,
-          created_at: new Date().toISOString(),
-          ...env,
-        }]);
-      }, 30000);
+      if (mode === "now") {
+        setSessionId(data.id);
+        localStorage.setItem("activeSessionId", data.id.toString());
+
+        intervalRef.current = setInterval(async () => {
+          const env = await getEnvironmentData();
+          if (typeof navigator !== "undefined" && navigator.onLine) {
+            await supabase.from("session_logs").insert([{
+              session_id: data.id,
+              created_at: new Date().toISOString(),
+              ...env,
+            }]);
+          }
+        }, 30000);
+      }
+
+      setLoading(false);
+      router.push("/");
+    } catch {
+      await queueOffline();
     }
-
-    setLoading(false);
-    router.push("/");
   };
 
   const inputClass = "w-full bg-gray-800 text-white border border-gray-700 rounded-xl px-4 py-3.5 text-[15px] placeholder-gray-500 focus:border-teal-500 focus:outline-none transition";
