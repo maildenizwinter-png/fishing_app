@@ -7,6 +7,7 @@ import {
   Fish, Waves, Clock, Play, Square, Plus, User, MapPin, Ruler,
   Scale, Thermometer, Cloud, RefreshCw, ArrowDown, Users,
 } from "lucide-react";
+import BitePrediction from "./components/BitePrediction";
 
 export default function Home() {
   const [fishCount, setFishCount] = useState(0);
@@ -226,6 +227,10 @@ useEffect(() => {
     { href: null, icon: Clock, value: totalTime, label: "am Wasser" },
   ];
 
+  // Standort für die Beißvorhersage: letzter Fang mit GPS, sonst Region (Bodensee)
+  const biteLat = lastCatch?.latitude ? Number(lastCatch.latitude) : 47.7;
+  const biteLon = lastCatch?.longitude ? Number(lastCatch.longitude) : 9.6;
+
   return (
     <div
       ref={containerRef}
@@ -372,6 +377,8 @@ useEffect(() => {
           </div>
         </div>
       )}
+
+      <BitePrediction lat={biteLat} lon={biteLon} />
 
       {!activeSession && lastCatch && (
         <div className="bg-gray-900 rounded-2xl overflow-hidden border border-gray-800">
