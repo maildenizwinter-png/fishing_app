@@ -2,7 +2,7 @@
 // Reihenfolge wichtig: erst Sessions (neue Server-IDs merken), dann Fänge
 // (lokale Session-Referenz auflösen, Fotos hochladen).
 import { supabase } from "./supabaseClient";
-import { allItems, markSynced, markError } from "./offlineDb";
+import { allItems, markSynced } from "./offlineDb";
 
 async function uploadPhoto(blob: Blob, name: string): Promise<string | null> {
   const fileName = name || `${Date.now()}.jpg`;
@@ -44,8 +44,8 @@ export async function syncOutbox(): Promise<{ synced: number; errors: number }> 
         if (act && Number(act) === -s.id!) localStorage.setItem("activeSessionId", String(data.id));
         await markSynced(s.id!, data.id);
         synced++;
-      } catch (e: any) {
-        await markError(s.id!, e?.message || "Fehler");
+      } catch {
+        // Bleibt "pending" -> wird beim nächsten Sync erneut versucht (kein Datenverlust)
         errors++;
       }
     }
@@ -66,8 +66,8 @@ export async function syncOutbox(): Promise<{ synced: number; errors: number }> 
         if (error) throw error;
         await markSynced(c.id!);
         synced++;
-      } catch (e: any) {
-        await markError(c.id!, e?.message || "Fehler");
+      } catch {
+        // Bleibt "pending" -> nächster Sync versucht es erneut
         errors++;
       }
     }
