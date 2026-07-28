@@ -3,6 +3,7 @@ import { useState, useRef } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import { Waves, Play, CalendarPlus, MapPin, Cloud, RefreshCw, Fish, Save } from "lucide-react";
+import { fetchWaterInfo } from "../../lib/water";
 
 export default function SessionPage() {
   const [location, setLocation] = useState("");
@@ -28,12 +29,14 @@ export default function SessionPage() {
               `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${process.env.NEXT_PUBLIC_WEATHER_API_KEY}&units=metric`
             );
             const weatherData = await res.json();
+            const water = await fetchWaterInfo(lat, lon);
             resolve({
               latitude: lat,
               longitude: lon,
               temperature: weatherData.main?.temp,
               pressure: weatherData.main?.pressure,
               weather: weatherData.weather?.[0]?.main,
+              river_discharge: water.current,
             });
           } catch {
             resolve({});
@@ -186,6 +189,7 @@ export default function SessionPage() {
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-2.5 text-sm text-gray-400">
           <p className="flex items-center gap-2"><MapPin className="w-4 h-4 text-gray-500" strokeWidth={1.75} /> GPS wird automatisch erfasst</p>
           <p className="flex items-center gap-2"><Cloud className="w-4 h-4 text-gray-500" strokeWidth={1.75} /> Wetter wird automatisch geladen</p>
+          <p className="flex items-center gap-2"><Waves className="w-4 h-4 text-gray-500" strokeWidth={1.75} /> Wasserführung wird erfasst</p>
           <p className="flex items-center gap-2"><RefreshCw className="w-4 h-4 text-gray-500" strokeWidth={1.75} /> Tracking alle 30 Sekunden</p>
         </div>
       )}

@@ -7,11 +7,13 @@ import dynamic from "next/dynamic";
 import {
   ArrowLeft, X, User, Clock, Flag, Cloud, Thermometer, Wind, Map,
   ChevronUp, ChevronDown, Fish, Plus, Ruler, Scale, Droplet,
+  Waves, TrendingUp, TrendingDown, Minus,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip,
   ResponsiveContainer
 } from "recharts";
+import { fetchWaterInfo, formatDischarge, WaterInfo } from "../../../lib/water";
 
 const SessionMap = dynamic(() => import("../../components/SessionMap"), { ssr: false });
 
@@ -25,6 +27,7 @@ export default function SessionDetailPage() {
   const [galleryImage, setGalleryImage] = useState<string | null>(null);
   const [showMap, setShowMap] = useState(false);
   const [chartMode, setChartMode] = useState<"druck" | "temp">("druck");
+  const [waterInfo, setWaterInfo] = useState<WaterInfo | null>(null);
 
   const load = async () => {
     const { data: sessionData } = await supabase
@@ -52,6 +55,14 @@ export default function SessionDetailPage() {
   useEffect(() => {
     load();
   }, [id]);
+
+  useEffect(() => {
+    if (session?.latitude && session?.longitude) {
+      fetchWaterInfo(session.latitude, session.longitude).then(setWaterInfo);
+    } else {
+      setWaterInfo(null);
+    }
+  }, [session?.latitude, session?.longitude]);
 
   const formatTime = (date: string) => {
     return new Date(date + "Z").toLocaleString("de-DE", {
@@ -209,6 +220,36 @@ export default function SessionDetailPage() {
           {session.pressure && <span className="flex items-center gap-1"><Wind className="w-3.5 h-3.5" strokeWidth={1.75} /> {session.pressure} hPa</span>}
         </div>
       </div>
+
+      {/* WASSERFÜHRUNG */}
+      {(session.river_discharge != null || waterInfo?.current != null) && (
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-white font-semibold flex items-center gap-2"><Waves className="w-5 h-5 text-teal-400" strokeWidth={1.75} /> Wasserführung</h2>
+            {waterInfo?.trend && (
+              <span className="inline-flex items-center gap-1 text-sm text-gray-300">
+                {waterInfo.trend === "steigend" ? <TrendingUp className="w-4 h-4 text-sky-400" /> : waterInfo.trend === "fallend" ? <TrendingDown className="w-4 h-4 text-teal-400" /> : <Minus className="w-4 h-4 text-gray-400" />}
+                {waterInfo.trend}
+              </span>
+            )}
+          </div>
+          {session.river_discharge != null && (
+            <p className="text-gray-400 text-sm">Zur Session-Zeit: <span className="text-white">{formatDischarge(session.river_discharge)}</span></p>
+          )}
+          {waterInfo?.current != null && (
+            <p className="text-gray-400 text-sm">Aktuell: <span className="text-white">{formatDischarge(waterInfo.current)}</span></p>
+          )}
+          {waterInfo?.series && waterInfo.series.length > 1 && (
+            <ResponsiveContainer width="100%" height={60}>
+              <LineChart data={waterInfo.series}>
+                <YAxis hide domain={["dataMin", "dataMax"]} />
+                <Line type="monotone" dataKey="value" stroke="#2dd4bf" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+          <p className="text-gray-600 text-xs">Modellierte Wasserführung · kein amtlicher cm-Pegel</p>
+        </div>
+      )}
 
       {/* KARTEN BUTTON */}
       {hasMapData && (

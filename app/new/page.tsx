@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import { Fish, User, Users, Save, Camera, X, AlertTriangle } from "lucide-react";
 import { getFishRule, isInSchonzeit, isUntermassig, formatSchonzeit } from "../../lib/fishingRules";
+import { fetchWaterInfo } from "../../lib/water";
 
 export default function NewCatchPage() {
   const router = useRouter();
@@ -183,8 +184,11 @@ export default function NewCatchPage() {
     // GPS + Wetter immer holen
     const { latitude, longitude } = await getLocationData();
     let weatherData = { temperature: null, pressure: null, weather: null };
+    let riverDischarge: number | null = null;
     if (latitude && longitude) {
       weatherData = await getWeatherData(latitude, longitude);
+      const water = await fetchWaterInfo(latitude, longitude);
+      riverDischarge = water.current;
     }
 
     const imageUrl = await uploadImage();
@@ -209,6 +213,7 @@ export default function NewCatchPage() {
       created_at: catchTime,
       latitude,
       longitude,
+      river_discharge: riverDischarge,
       is_foreign: isForeign,
       angler_name: isForeign ? (anglerName.trim() || null) : null,
       ...weatherData,
