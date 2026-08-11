@@ -6,7 +6,7 @@ import {
   WaterInfo, WaterSearchResult,
 } from "../../lib/water";
 import { Waves, Plus, Search, Trash2, TrendingUp, TrendingDown, Minus, X } from "lucide-react";
-import { LineChart, Line, YAxis, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 export default function WaterWatchlist() {
   const [waters, setWaters] = useState<any[]>([]);
@@ -186,14 +186,34 @@ export default function WaterWatchlist() {
                 </div>
               </div>
               {info.series.length > 1 && (
-                <ResponsiveContainer width="100%" height={60}>
-                  <LineChart data={info.series}>
-                    <YAxis hide domain={["dataMin", "dataMax"]} />
-                    <Line type="monotone" dataKey="value" stroke="#2dd4bf" strokeWidth={2} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
+                <div className="space-y-1">
+                  <p className="text-gray-500 text-xs">Abflussmenge (m³/s) · letzte 7 Tage → heute</p>
+                  <ResponsiveContainer width="100%" height={110}>
+                    <LineChart data={info.series} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+                      <XAxis
+                        dataKey="date"
+                        tick={{ fill: "#9ca3af", fontSize: 10 }}
+                        tickFormatter={(d: string) => { const p = d.split("-"); return `${p[2]}.${p[1]}.`; }}
+                        interval="preserveStartEnd"
+                        minTickGap={22}
+                      />
+                      <YAxis
+                        width={38}
+                        tick={{ fill: "#9ca3af", fontSize: 10 }}
+                        domain={["auto", "auto"]}
+                        tickFormatter={(v: number) => (v >= 10 ? String(Math.round(v)) : v.toFixed(1))}
+                      />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: "#1f2937", border: "none", borderRadius: "8px", color: "#fff", fontSize: "12px" }}
+                        labelFormatter={(d: any) => { const p = String(d).split("-"); return `${p[2]}.${p[1]}.${p[0]}`; }}
+                        formatter={(v: any) => [`${Number(v).toFixed(2)} m³/s`, "Abfluss"]}
+                      />
+                      <Line type="monotone" dataKey="value" stroke="#2dd4bf" strokeWidth={2} dot={{ r: 2, fill: "#2dd4bf" }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
               )}
-              <p className="text-gray-600 text-xs">Modellierte Wasserführung (Open-Meteo), 7-Tage-Verlauf · kein amtlicher cm-Pegel</p>
+              <p className="text-gray-600 text-xs">Modellierte Wasserführung (Open-Meteo) · links = vor 7 Tagen, rechts = heute · kein amtlicher cm-Pegel</p>
             </>
           )}
         </div>
