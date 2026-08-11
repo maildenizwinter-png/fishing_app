@@ -1,14 +1,21 @@
 import { supabase } from "./supabaseClient";
 
+// WICHTIG: getSession() liest die gespeicherte Sitzung LOKAL (ohne Netz) und
+// funktioniert daher offline. getUser() macht einen Netzwerk-Aufruf und würde
+// offline scheitern -> Endlos-Redirect auf /login (Flackern).
+
 export async function getActiveUserId(): Promise<string | null> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
   if (!user) return null;
 
   const impersonateId = typeof window !== "undefined"
     ? localStorage.getItem("impersonateUserId")
     : null;
+  const online = typeof navigator !== "undefined" ? navigator.onLine : true;
 
-  if (impersonateId) {
+  // Impersonation-Auflösung braucht die profiles-Tabelle -> nur online
+  if (impersonateId && online) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
@@ -17,10 +24,9 @@ export async function getActiveUserId(): Promise<string | null> {
 
     if (profile?.role === "admin") {
       return impersonateId;
-    } else {
-      localStorage.removeItem("impersonateUserId");
-      localStorage.removeItem("impersonateUserName");
     }
+    localStorage.removeItem("impersonateUserId");
+    localStorage.removeItem("impersonateUserName");
   }
 
   return user.id;
@@ -32,12 +38,17 @@ export async function getActiveUserId(): Promise<string | null> {
  * - mode "user": normaler User oder Admin mit Impersonation → nur Daten dieses Users
  */
 export async function getUserFilter(): Promise<{ mode: "all" | "user"; userId: string | null }> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
   if (!user) return { mode: "user", userId: null };
 
   const impersonateId = typeof window !== "undefined"
     ? localStorage.getItem("impersonateUserId")
     : null;
+  const online = typeof navigator !== "undefined" ? navigator.onLine : true;
+
+  // Offline: eigene Daten (Rollen-Check nicht möglich)
+  if (!online) return { mode: "user", userId: user.id };
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -50,10 +61,8 @@ export async function getUserFilter(): Promise<{ mode: "all" | "user"; userId: s
   if (impersonateId && isAdmin) {
     return { mode: "user", userId: impersonateId };
   }
-
   if (isAdmin) {
     return { mode: "all", userId: null };
   }
-
   return { mode: "user", userId: user.id };
 }

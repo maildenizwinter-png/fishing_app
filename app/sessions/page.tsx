@@ -17,7 +17,8 @@ export default function SessionsPage() {
   const loadSessions = async () => {
     try { setPending(await pendingSessions()); } catch {}
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
       if (!user) throw new Error("no user");
       const { data, error } = await supabase
         .from("sessions")

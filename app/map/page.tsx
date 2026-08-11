@@ -18,17 +18,19 @@ export default function MapPage() {
   }, []);
 
   const loadCatches = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
     if (!user) { router.push("/login"); return; }
 
-    const { data } = await supabase
-      .from("catches")
-      .select("*, sessions(location)")
-      .eq("user_id", user.id)
-      .not("latitude", "is", null)
-      .not("longitude", "is", null);
-
-    setCatches(data || []);
+    try {
+      const { data } = await supabase
+        .from("catches")
+        .select("*, sessions(location)")
+        .eq("user_id", user.id)
+        .not("latitude", "is", null)
+        .not("longitude", "is", null);
+      setCatches(data || []);
+    } catch {}
     setLoading(false);
   };
 
