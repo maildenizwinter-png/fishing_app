@@ -82,7 +82,8 @@ export default function StatsPage() {
   };
 
   if (loading) return <div className="p-4 text-gray-400">Laden...</div>;
-  if (catches.length === 0 && foreignCatches.length === 0) return <div className="p-4 text-gray-400">Noch keine Fänge vorhanden.</div>;
+
+  const noCatches = catches.length === 0 && foreignCatches.length === 0;
 
   // 🐟 Fische pro Gewässer
   const perLocation: Record<string, number> = {};
@@ -259,6 +260,16 @@ export default function StatsPage() {
           </p>
         </div>
       </div>
+
+      {/* Hinweis für neue User ohne Fänge – Seite wird trotzdem komplett angezeigt */}
+      {noCatches && (
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
+          <p className="text-gray-300 text-sm">Noch keine Fänge eingetragen.</p>
+          <p className="text-gray-500 text-xs mt-1">
+            Die Auswertungen füllen sich automatisch, sobald du Fänge einträgst. Deine Pegel kannst du unten schon jetzt hinzufügen.
+          </p>
+        </div>
+      )}
 
       {/* Karten Button */}
       {catchesWithGps.length > 0 && (
