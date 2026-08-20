@@ -6,18 +6,28 @@
 export type WaterTrend = "steigend" | "fallend" | "gleich";
 
 export type WaterInfo = {
-  current: number | null; // aktueller Abfluss m³/s
+  current: number | null; // Abfluss m³/s am heutigen Tag
   trend: WaterTrend | null;
   changePct: number | null;
-  series: { date: string; value: number }[]; // ~7 Tage
+  today: string | null; // ISO-Datum (YYYY-MM-DD) des heutigen Tages
+  series: { date: string; value: number }[]; // 3 Tage zurück + heute + 4 Tage Prognose
 };
 
+function todayISO(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export async function fetchWaterInfo(lat: number, lon: number): Promise<WaterInfo> {
-  const empty: WaterInfo = { current: null, trend: null, changePct: null, series: [] };
+  const empty: WaterInfo = { current: null, trend: null, changePct: null, today: null, series: [] };
   try {
+    // past_days=3 + forecast_days=5 → 3 Tage Vergangenheit, heute, 4 Tage Prognose (8 Tage).
     const url =
       `https://flood-api.open-meteo.com/v1/flood?latitude=${lat}&longitude=${lon}` +
-      `&daily=river_discharge&past_days=7&forecast_days=1`;
+      `&daily=river_discharge&past_days=3&forecast_days=5`;
     const res = await fetch(url);
     if (!res.ok) return empty;
     const data = await res.json();
@@ -28,8 +38,15 @@ export async function fetchWaterInfo(lat: number, lon: number): Promise<WaterInf
       .filter((p) => p.value != null) as { date: string; value: number }[];
     if (series.length === 0) return empty;
 
-    const current = series[series.length - 1].value;
-    const prev = series.length >= 4 ? series[series.length - 4].value : series[0].value;
+    const today = todayISO();
+    let todayIdx = series.findIndex((p) => p.date === today);
+    // Falls das heutige Datum (Zeitzonen-Grenze) nicht exakt trifft: letzten
+    // Vergangenheitswert nehmen (index = past_days, sonst Mitte der Reihe).
+    if (todayIdx < 0) todayIdx = Math.min(3, series.length - 1);
+
+    const current = series[todayIdx].value;
+    const prevIdx = Math.max(0, todayIdx - 3);
+    const prev = series[prevIdx].value;
     const diff = current - prev;
     const changePct = prev ? (diff / prev) * 100 : null;
 
@@ -38,7 +55,7 @@ export async function fetchWaterInfo(lat: number, lon: number): Promise<WaterInf
       if (changePct > 5) trend = "steigend";
       else if (changePct < -5) trend = "fallend";
     }
-    return { current, trend, changePct, series };
+    return { current, trend, changePct, today: series[todayIdx].date, series };
   } catch {
     return empty;
   }

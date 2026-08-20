@@ -5,8 +5,8 @@ import {
   fetchWaterInfo, searchWaters, formatDischarge,
   WaterInfo, WaterSearchResult,
 } from "../../lib/water";
-import { Waves, Plus, Search, Trash2, TrendingUp, TrendingDown, Minus, X } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { Waves, Plus, Search, Trash2, TrendingUp, TrendingDown, Minus, X, Pencil } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 
 export default function WaterWatchlist() {
   const [waters, setWaters] = useState<any[]>([]);
@@ -61,15 +61,28 @@ export default function WaterWatchlist() {
   const addWater = async (r: WaterSearchResult) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+    // Name frei wählbar → exakt wie bei HVZ Pegel-Info benennen
+    // (z.B. „Pegel Epplings Obere Argen").
+    const name = (prompt("Name der Messstelle (z.B. wie bei HVZ Pegel-Info):", r.shortName) || r.shortName).trim();
+    if (!name) return;
     const { data } = await supabase
       .from("user_waters")
-      .insert({ user_id: user.id, name: r.shortName, latitude: r.lat, longitude: r.lon, is_river: true })
+      .insert({ user_id: user.id, name, latitude: r.lat, longitude: r.lon, is_river: true })
       .select()
       .single();
     setAdding(false);
     setQ("");
     setResults([]);
     await loadWaters(data?.id);
+  };
+
+  const renameWater = async (w: any) => {
+    const name = prompt("Messstelle umbenennen (z.B. wie bei HVZ Pegel-Info):", w.name);
+    if (name == null) return;
+    const trimmed = name.trim();
+    if (!trimmed || trimmed === w.name) return;
+    await supabase.from("user_waters").update({ name: trimmed }).eq("id", w.id);
+    await loadWaters(w.id);
   };
 
   const removeWater = async (id: number) => {
@@ -163,7 +176,12 @@ export default function WaterWatchlist() {
             ))}
           </select>
           {selected && (
-            <button onClick={() => removeWater(selected.id)} className="px-3 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-xl text-gray-400 hover:text-red-400 transition shrink-0">
+            <button onClick={() => renameWater(selected)} className="px-3 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-xl text-gray-400 hover:text-teal-400 transition shrink-0" title="Umbenennen">
+              <Pencil className="w-4 h-4" />
+            </button>
+          )}
+          {selected && (
+            <button onClick={() => removeWater(selected.id)} className="px-3 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-xl text-gray-400 hover:text-red-400 transition shrink-0" title="Entfernen">
               <Trash2 className="w-4 h-4" />
             </button>
           )}
@@ -187,7 +205,7 @@ export default function WaterWatchlist() {
               </div>
               {info.series.length > 1 && (
                 <div className="space-y-1">
-                  <p className="text-gray-500 text-xs">Abflussmenge (m³/s) · letzte 7 Tage → heute</p>
+                  <p className="text-gray-500 text-xs">Abflussmenge (m³/s) · 3 Tage zurück → heute → 4 Tage Prognose</p>
                   <ResponsiveContainer width="100%" height={110}>
                     <LineChart data={info.series} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
                       <XAxis
@@ -208,12 +226,20 @@ export default function WaterWatchlist() {
                         labelFormatter={(d: any) => { const p = String(d).split("-"); return `${p[2]}.${p[1]}.${p[0]}`; }}
                         formatter={(v: any) => [`${Number(v).toFixed(2)} m³/s`, "Abfluss"]}
                       />
+                      {info.today && (
+                        <ReferenceLine
+                          x={info.today}
+                          stroke="#64748b"
+                          strokeDasharray="3 3"
+                          label={{ value: "heute", position: "top", fill: "#94a3b8", fontSize: 10 }}
+                        />
+                      )}
                       <Line type="monotone" dataKey="value" stroke="#2dd4bf" strokeWidth={2} dot={{ r: 2, fill: "#2dd4bf" }} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
               )}
-              <p className="text-gray-600 text-xs">Modellierte Wasserführung (Open-Meteo) · links = vor 7 Tagen, rechts = heute · kein amtlicher cm-Pegel</p>
+              <p className="text-gray-600 text-xs">Modellierte Wasserführung (Open-Meteo) · rechts der „heute“-Linie = Prognose · kein amtlicher cm-Pegel</p>
             </>
           )}
         </div>
