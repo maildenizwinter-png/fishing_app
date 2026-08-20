@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Fish, User, Users, Save, Camera, X, AlertTriangle } from "lucide-react";
 import { getFishRule, isInSchonzeit, isUntermassig, formatSchonzeit } from "../../lib/fishingRules";
 import { fetchWaterInfo } from "../../lib/water";
+import { fetchHvzByCoords } from "../../lib/hvz";
+import { loadSavedPegels, recallPegel, rememberPegel, SavedPegel } from "../../lib/pegel";
 
 export default function NewCatchPage() {
   const router = useRouter();
@@ -41,6 +43,9 @@ export default function NewCatchPage() {
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
+  const [pegels, setPegels] = useState<SavedPegel[]>([]);
+  const [selectedPegelId, setSelectedPegelId] = useState<number | null>(null);
+
   useEffect(() => {
     const storedId = localStorage.getItem("activeSessionId");
     const aid = storedId ? Number(storedId) : null;
@@ -48,6 +53,11 @@ export default function NewCatchPage() {
     setSelectedSessionId(aid); // aktive Session automatisch vorauswählen
     loadSessions();
     loadKnownAnglers();
+    loadSavedPegels().then((ps) => {
+      setPegels(ps);
+      const remembered = recallPegel();
+      setSelectedPegelId(remembered != null && ps.some((p) => p.id === remembered) ? remembered : (ps[0]?.id ?? null));
+    });
   }, []);
 
   const loadSessions = async () => {
@@ -183,9 +193,18 @@ export default function NewCatchPage() {
     // GPS + Wetter immer holen
     const { latitude, longitude } = await getLocationData();
     let weatherData = { temperature: null, pressure: null, weather: null };
-    let riverDischarge: number | null = null;
     if (latitude && longitude) {
       weatherData = await getWeatherData(latitude, longitude);
+    }
+
+    // Wasserführung vom gewählten HVZ-Pegel; ohne Pegel Fallback aufs Modell (GPS)
+    let riverDischarge: number | null = null;
+    const chosenPegel = pegels.find((p) => p.id === selectedPegelId) || null;
+    if (chosenPegel) {
+      rememberPegel(undefined, chosenPegel.id);
+      const d = await fetchHvzByCoords(chosenPegel.latitude, chosenPegel.longitude);
+      riverDischarge = d?.q ?? null;
+    } else if (latitude && longitude) {
       const water = await fetchWaterInfo(latitude, longitude);
       riverDischarge = water.current;
     }
@@ -327,6 +346,23 @@ export default function NewCatchPage() {
           </option>
         ))}
       </select>
+
+      {/* Pegel für die Wasserführung – nur wenn welche gespeichert sind */}
+      {pegels.length > 0 && (
+        <div className="space-y-1.5">
+          <label className="text-gray-500 text-xs px-1">Pegel für die Wasserführung</label>
+          <select
+            value={selectedPegelId ?? ""}
+            onChange={(e) => setSelectedPegelId(e.target.value ? Number(e.target.value) : null)}
+            className={inputClass}
+          >
+            <option value="">— kein Pegel —</option>
+            {pegels.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Zeitpunkt – einziges Feld mit Mini-Label (datetime-local kann keinen Platzhalter) */}
       <div className="space-y-1.5">

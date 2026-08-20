@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { fetchBitePrediction, BiteDay, BiteRating } from "../../lib/bite";
+import { fetchHvzByCoords, hvzTrend } from "../../lib/hvz";
+import { loadSavedPegels, recallPegel, rememberPegel, SavedPegel } from "../../lib/pegel";
 import { Fish, Sunrise } from "lucide-react";
 
 const ratingStyle: Record<BiteRating, { label: string; cls: string }> = {
@@ -13,13 +15,33 @@ const ratingStyle: Record<BiteRating, { label: string; cls: string }> = {
 
 export default function BitePrediction({ lat, lon }: { lat: number; lon: number }) {
   const [days, setDays] = useState<BiteDay[] | null>(null);
+  const [pegels, setPegels] = useState<SavedPegel[]>([]);
+  const [selectedPegelId, setSelectedPegelId] = useState<number | null>(null);
+
+  useEffect(() => {
+    loadSavedPegels().then((ps) => {
+      setPegels(ps);
+      const r = recallPegel();
+      setSelectedPegelId(r != null && ps.some((p) => p.id === r) ? r : (ps[0]?.id ?? null));
+    });
+  }, []);
 
   useEffect(() => {
     let alive = true;
     setDays(null);
-    fetchBitePrediction(lat, lon).then((d) => { if (alive) setDays(d); });
+    (async () => {
+      // Wasser-Trend vom gewählten HVZ-Pegel; ohne Pegel Fallback aufs Modell
+      let opts: { waterTrend?: import("../../lib/water").WaterTrend | null } | undefined;
+      const p = pegels.find((x) => x.id === selectedPegelId);
+      if (p) {
+        const d = await fetchHvzByCoords(p.latitude, p.longitude);
+        opts = { waterTrend: d ? hvzTrend(d.q, d.tmQ).trend : null };
+      }
+      const res = await fetchBitePrediction(lat, lon, opts);
+      if (alive) setDays(res);
+    })();
     return () => { alive = false; };
-  }, [lat, lon]);
+  }, [lat, lon, selectedPegelId, pegels]);
 
   const fmtDate = (iso: string) => {
     const [, m, dd] = iso.split("-");
@@ -34,6 +56,23 @@ export default function BitePrediction({ lat, lon }: { lat: number; lon: number 
         </h2>
         <span className="text-gray-600 text-xs">Einschätzung, keine Garantie</span>
       </div>
+
+      {pegels.length > 0 && (
+        <select
+          value={selectedPegelId ?? ""}
+          onChange={(e) => {
+            const id = e.target.value ? Number(e.target.value) : null;
+            setSelectedPegelId(id);
+            if (id != null) rememberPegel(undefined, id);
+          }}
+          className="w-full bg-gray-800 text-white border border-gray-700 rounded-xl px-3 py-2 text-xs focus:border-teal-500 focus:outline-none transition"
+        >
+          <option value="">Wasser-Trend: Modell (Open-Meteo)</option>
+          {pegels.map((p) => (
+            <option key={p.id} value={p.id}>Wasser-Trend: {p.name}</option>
+          ))}
+        </select>
+      )}
 
       {days === null ? (
         <p className="text-gray-500 text-sm">Lade Vorhersage…</p>
@@ -70,7 +109,7 @@ export default function BitePrediction({ lat, lon }: { lat: number; lon: number 
           );
         })
       )}
-      <p className="text-gray-600 text-xs">Aus Luftdruck-Trend, Mond, Bewölkung, Niederschlag &amp; Wasser-Trend · grobe Heuristik.</p>
+      <p className="text-gray-600 text-xs">Aus Luftdruck-Trend, Mond, Bewölkung, Niederschlag &amp; Wasser-Trend (gewählter HVZ-Pegel) · grobe Heuristik.</p>
     </div>
   );
 }

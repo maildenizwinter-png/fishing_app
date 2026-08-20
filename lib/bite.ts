@@ -3,7 +3,7 @@
 // Wasserführungs-Trend zu einem Score je Tag + beste Zeiten (Dämmerung).
 // Datenquelle: Open-Meteo Forecast (kostenlos, kein Key) + Open-Meteo Flood.
 
-import { fetchWaterInfo } from "./water";
+import { fetchWaterInfo, WaterTrend } from "./water";
 
 export type BiteRating = "top" | "gut" | "ok" | "mäßig" | "schlecht";
 export type BiteFactor = { label: string; value: string; score: number };
@@ -49,13 +49,21 @@ const windowAround = (iso: string, minStart: number, minEnd: number) => {
   return `${hhmm(new Date(base.getTime() + minStart * 60000))}–${hhmm(new Date(base.getTime() + minEnd * 60000))}`;
 };
 
-export async function fetchBitePrediction(lat: number, lon: number): Promise<BiteDay[]> {
+export async function fetchBitePrediction(
+  lat: number,
+  lon: number,
+  opts?: { waterTrend?: WaterTrend | null }
+): Promise<BiteDay[]> {
   try {
     const url =
       `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
       `&hourly=surface_pressure,cloud_cover,precipitation&daily=sunrise,sunset` +
       `&timezone=auto&forecast_days=3`;
-    const [res, water] = await Promise.all([fetch(url), fetchWaterInfo(lat, lon)]);
+    // Wasser-Trend: entweder vorgegeben (echter HVZ-Pegel) oder Fallback aufs Modell
+    const useOverride = opts && "waterTrend" in opts;
+    const waterFetch = useOverride ? Promise.resolve(null) : fetchWaterInfo(lat, lon);
+    const [res, water] = await Promise.all([fetch(url), waterFetch]);
+    const waterTrend: WaterTrend | null = useOverride ? (opts!.waterTrend ?? null) : (water?.trend ?? null);
     if (!res.ok) return [];
     const d = await res.json();
 
@@ -102,8 +110,8 @@ export async function fetchBitePrediction(lat: number, lon: number): Promise<Bit
       const m = moon(new Date(date + "T12:00:00"));
 
       let wScore = 60;
-      if (water.trend === "steigend") wScore = 70;
-      else if (water.trend === "fallend") wScore = 62;
+      if (waterTrend === "steigend") wScore = 70;
+      else if (waterTrend === "fallend") wScore = 62;
 
       const score = Math.round(
         pScore * 0.35 + m.score * 0.25 + cScore * 0.2 + rScore * 0.1 + wScore * 0.1
@@ -115,7 +123,7 @@ export async function fetchBitePrediction(lat: number, lon: number): Promise<Bit
         { label: "Bewölkung", value: `${Math.round(cloudMean)} %`, score: cScore },
         { label: "Niederschlag", value: rainSum < 0.1 ? "keiner" : `${rainSum.toFixed(1)} mm`, score: rScore },
       ];
-      if (water.trend) factors.push({ label: "Wasser", value: water.trend, score: wScore });
+      if (waterTrend) factors.push({ label: "Wasser", value: waterTrend, score: wScore });
 
       const bestWindows: string[] = [];
       if (sr[i]) bestWindows.push(windowAround(sr[i], -45, 60));

@@ -1,9 +1,11 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import { Waves, Play, CalendarPlus, MapPin, Cloud, RefreshCw, Fish, Save } from "lucide-react";
 import { fetchWaterInfo } from "../../lib/water";
+import { fetchHvzByCoords } from "../../lib/hvz";
+import { loadSavedPegels, recallPegel, rememberPegel, SavedPegel } from "../../lib/pegel";
 
 export default function SessionPage() {
   const [location, setLocation] = useState("");
@@ -15,10 +17,35 @@ export default function SessionPage() {
   const [manualStart, setManualStart] = useState("");
   const [manualEnd, setManualEnd] = useState("");
 
+  const [pegels, setPegels] = useState<SavedPegel[]>([]);
+  const [selectedPegelId, setSelectedPegelId] = useState<number | null>(null);
+
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const router = useRouter();
 
-  const getEnvironmentData = async () => {
+  useEffect(() => {
+    loadSavedPegels().then((ps) => {
+      setPegels(ps);
+      setSelectedPegelId((cur) => {
+        if (cur != null) return cur;
+        const remembered = recallPegel();
+        if (remembered != null && ps.some((p) => p.id === remembered)) return remembered;
+        return ps[0]?.id ?? null;
+      });
+    });
+  }, []);
+
+  // Beim Wechsel des Gewässers den dafür gemerkten Pegel vorauswählen
+  useEffect(() => {
+    if (!location.trim() || pegels.length === 0) return;
+    const remembered = recallPegel(location);
+    if (remembered != null && pegels.some((p) => p.id === remembered)) {
+      setSelectedPegelId(remembered);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location, pegels]);
+
+  const getEnvironmentData = async (pegel: SavedPegel | null) => {
     return new Promise<any>((resolve) => {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
@@ -29,14 +56,22 @@ export default function SessionPage() {
               `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${process.env.NEXT_PUBLIC_WEATHER_API_KEY}&units=metric`
             );
             const weatherData = await res.json();
-            const water = await fetchWaterInfo(lat, lon);
+            // Wasserführung vom gewählten HVZ-Pegel; ohne Pegel Fallback aufs Modell
+            let discharge: number | null = null;
+            if (pegel) {
+              const d = await fetchHvzByCoords(pegel.latitude, pegel.longitude);
+              discharge = d?.q ?? null;
+            } else {
+              const water = await fetchWaterInfo(lat, lon);
+              discharge = water.current;
+            }
             resolve({
               latitude: lat,
               longitude: lon,
               temperature: weatherData.main?.temp,
               pressure: weatherData.main?.pressure,
               weather: weatherData.weather?.[0]?.main,
-              river_discharge: water.current,
+              river_discharge: discharge,
             });
           } catch {
             resolve({});
@@ -60,8 +95,11 @@ export default function SessionPage() {
 
     setLoading(true);
 
+    const chosenPegel = pegels.find((p) => p.id === selectedPegelId) || null;
+    if (chosenPegel) rememberPegel(location, chosenPegel.id);
+
     const { data: { user } } = await supabase.auth.getUser();
-    const env = mode === "now" ? await getEnvironmentData() : {};
+    const env = mode === "now" ? await getEnvironmentData(chosenPegel) : {};
 
     const startTime = mode === "manual"
       ? new Date(manualStart).toISOString()
@@ -95,7 +133,7 @@ export default function SessionPage() {
       localStorage.setItem("activeSessionId", data.id.toString());
 
       intervalRef.current = setInterval(async () => {
-        const env = await getEnvironmentData();
+        const env = await getEnvironmentData(chosenPegel);
         await supabase.from("session_logs").insert([{
           session_id: data.id,
           created_at: new Date().toISOString(),
@@ -162,6 +200,28 @@ export default function SessionPage() {
         className={inputClass}
       />
 
+      {mode === "now" && pegels.length > 0 && (
+        <div className="space-y-1.5">
+          <label className="text-gray-500 text-xs px-1">Pegel für die Wasserführung</label>
+          <select
+            value={selectedPegelId ?? ""}
+            onChange={(e) => setSelectedPegelId(e.target.value ? Number(e.target.value) : null)}
+            className={inputClass}
+          >
+            <option value="">— kein Pegel —</option>
+            {pegels.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {mode === "now" && pegels.length === 0 && (
+        <p className="text-gray-500 text-xs px-1">
+          Tipp: Lege unter <span className="text-gray-400">Stats → Pegel</span> deine HVZ-Pegel an, dann kannst du hier den passenden Pegel wählen.
+        </p>
+      )}
+
       {mode === "manual" && (
         <div className="space-y-4">
           <div className="space-y-1.5">
@@ -189,7 +249,7 @@ export default function SessionPage() {
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-2.5 text-sm text-gray-400">
           <p className="flex items-center gap-2"><MapPin className="w-4 h-4 text-gray-500" strokeWidth={1.75} /> GPS wird automatisch erfasst</p>
           <p className="flex items-center gap-2"><Cloud className="w-4 h-4 text-gray-500" strokeWidth={1.75} /> Wetter wird automatisch geladen</p>
-          <p className="flex items-center gap-2"><Waves className="w-4 h-4 text-gray-500" strokeWidth={1.75} /> Wasserführung wird erfasst</p>
+          <p className="flex items-center gap-2"><Waves className="w-4 h-4 text-gray-500" strokeWidth={1.75} /> Wasserführung vom gewählten Pegel</p>
           <p className="flex items-center gap-2"><RefreshCw className="w-4 h-4 text-gray-500" strokeWidth={1.75} /> Tracking alle 30 Sekunden</p>
         </div>
       )}
