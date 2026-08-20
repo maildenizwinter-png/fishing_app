@@ -40,37 +40,9 @@ useEffect(() => {
     return () => window.removeEventListener("pageshow", handlePageShow);
   }, []);
 
-  const logWeather = async (sessionId: number) => {
-    if (!navigator.geolocation) return;
-
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          const lat = position.coords.latitude;
-          const lon = position.coords.longitude;
-
-          const res = await fetch(
-            `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${process.env.NEXT_PUBLIC_WEATHER_API_KEY}&units=metric`
-          );
-          const data = await res.json();
-
-          await supabase.from("session_logs").insert([{
-            session_id: sessionId,
-            created_at: new Date().toISOString(),
-            latitude: lat,
-            longitude: lon,
-            temperature: data.main?.temp ?? null,
-            pressure: data.main?.pressure ?? null,
-            weather: data.weather?.[0]?.main ?? null,
-          }]);
-        } catch {
-          console.log("Wetter-Log fehlgeschlagen");
-        }
-      },
-      () => console.log("GPS nicht verfügbar"),
-      { timeout: 10000 }
-    );
-  };
+  // Hinweis: Das laufende Nachtrag-Tracking (GPS/Wetter in session_logs)
+  // übernimmt jetzt zentral der globale SessionTracker (throttled, von jeder
+  // Seite aus beim App-Öffnen/Zurückkehren) – siehe app/components/SessionTracker.tsx.
 
   const loadData = async () => {
     const userId = await getActiveUserId();
@@ -144,8 +116,6 @@ useEffect(() => {
         .from("catches").select("*").eq("session_id", storedId)
         .order("created_at", { ascending: false });
       setSessionCatches(sc || []);
-
-      logWeather(Number(storedId));
     } else {
       setActiveSession(null);
     }
@@ -185,6 +155,7 @@ useEffect(() => {
       .update({ end_time: new Date().toISOString() })
       .eq("id", activeSession.id);
     localStorage.removeItem("activeSessionId");
+    localStorage.removeItem("lastTrackLog");
     setActiveSession(null);
     loadData();
   };

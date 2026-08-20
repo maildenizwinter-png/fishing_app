@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import { Waves, Play, CalendarPlus, MapPin, Cloud, RefreshCw, Fish, Save } from "lucide-react";
@@ -20,7 +20,6 @@ export default function SessionPage() {
   const [pegels, setPegels] = useState<SavedPegel[]>([]);
   const [selectedPegelId, setSelectedPegelId] = useState<number | null>(null);
 
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -132,14 +131,18 @@ export default function SessionPage() {
       setSessionId(data.id);
       localStorage.setItem("activeSessionId", data.id.toString());
 
-      intervalRef.current = setInterval(async () => {
-        const env = await getEnvironmentData(chosenPegel);
+      // Ersten Messpunkt sofort loggen. Wichtig: session_logs hat KEINE
+      // river_discharge-Spalte → vor dem Insert entfernen. Das laufende
+      // Nachtrag-Tracking übernimmt danach der globale SessionTracker.
+      const { river_discharge, ...logEnv } = env as any;
+      if (logEnv.latitude != null) {
         await supabase.from("session_logs").insert([{
           session_id: data.id,
           created_at: new Date().toISOString(),
-          ...env,
+          ...logEnv,
         }]);
-      }, 30000);
+        localStorage.setItem("lastTrackLog", String(Date.now()));
+      }
     }
 
     setLoading(false);
