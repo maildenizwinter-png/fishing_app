@@ -2,21 +2,26 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import {
-  fetchWaterInfo, searchWaters, formatDischarge,
-  WaterInfo, WaterSearchResult,
-} from "../../lib/water";
-import { Waves, Plus, Search, Trash2, TrendingUp, TrendingDown, Minus, X, Pencil } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+  searchHvzGauges, fetchHvzByCoords, hvzPegelUrl, hvzTrend,
+  HvzGauge, HvzDetail,
+} from "../../lib/hvz";
+import { Waves, Plus, Search, Trash2, TrendingUp, TrendingDown, Minus, ExternalLink } from "lucide-react";
+
+function fmtQ(v: number | null): string {
+  if (v == null) return "–";
+  return v >= 10 ? `${Math.round(v)} m³/s` : `${v.toFixed(2)} m³/s`;
+}
 
 export default function WaterWatchlist() {
   const [waters, setWaters] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [info, setInfo] = useState<WaterInfo | null>(null);
+  const [detail, setDetail] = useState<HvzDetail | null>(null);
+  const [noGauge, setNoGauge] = useState(false);
   const [loadingInfo, setLoadingInfo] = useState(false);
 
   const [adding, setAdding] = useState(false);
   const [q, setQ] = useState("");
-  const [results, setResults] = useState<WaterSearchResult[]>([]);
+  const [results, setResults] = useState<HvzGauge[]>([]);
   const [searching, setSearching] = useState(false);
 
   const loadWaters = async (selectId?: number) => {
@@ -40,34 +45,37 @@ export default function WaterWatchlist() {
   useEffect(() => {
     const w = waters.find((x) => x.id === selectedId);
     if (!w || w.latitude == null) {
-      setInfo(null);
+      setDetail(null);
+      setNoGauge(false);
       return;
     }
     setLoadingInfo(true);
-    fetchWaterInfo(w.latitude, w.longitude).then((i) => {
-      setInfo(i);
+    setNoGauge(false);
+    fetchHvzByCoords(w.latitude, w.longitude).then((d) => {
+      setDetail(d);
+      setNoGauge(d == null);
       setLoadingInfo(false);
     });
   }, [selectedId, waters]);
 
-  const runSearch = async () => {
-    if (!q.trim()) return;
+  const runSearch = async (term?: string) => {
+    const t = (term ?? q).trim();
+    if (!t) return;
+    if (term != null) setQ(term);
     setSearching(true);
-    const r = await searchWaters(q);
+    const r = await searchHvzGauges(t);
     setResults(r);
     setSearching(false);
   };
 
-  const addWater = async (r: WaterSearchResult) => {
+  const addGauge = async (g: HvzGauge) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    // Name frei wählbar → exakt wie bei HVZ Pegel-Info benennen
-    // (z.B. „Pegel Epplings Obere Argen").
-    const name = (prompt("Name der Messstelle (z.B. wie bei HVZ Pegel-Info):", r.shortName) || r.shortName).trim();
-    if (!name) return;
+    // HVZ-Name exakt übernehmen: „Name / Gewässer" (z.B. „Epplings / Obere Argen").
+    const name = g.gew && g.gew !== g.name ? `${g.name} / ${g.gew}` : g.name;
     const { data } = await supabase
       .from("user_waters")
-      .insert({ user_id: user.id, name, latitude: r.lat, longitude: r.lon, is_river: true })
+      .insert({ user_id: user.id, name, latitude: g.lat, longitude: g.lon, is_river: true })
       .select()
       .single();
     setAdding(false);
@@ -76,20 +84,11 @@ export default function WaterWatchlist() {
     await loadWaters(data?.id);
   };
 
-  const renameWater = async (w: any) => {
-    const name = prompt("Messstelle umbenennen (z.B. wie bei HVZ Pegel-Info):", w.name);
-    if (name == null) return;
-    const trimmed = name.trim();
-    if (!trimmed || trimmed === w.name) return;
-    await supabase.from("user_waters").update({ name: trimmed }).eq("id", w.id);
-    await loadWaters(w.id);
-  };
-
   const removeWater = async (id: number) => {
-    if (!confirm("Gewässer aus deiner Liste entfernen?")) return;
+    if (!confirm("Pegel aus deiner Liste entfernen?")) return;
     await supabase.from("user_waters").delete().eq("id", id);
     setSelectedId(null);
-    setInfo(null);
+    setDetail(null);
     loadWaters();
   };
 
@@ -97,39 +96,43 @@ export default function WaterWatchlist() {
   const inputClass = "w-full bg-gray-800 text-white border border-gray-700 rounded-xl px-4 py-2.5 text-sm placeholder-gray-500 focus:border-teal-500 focus:outline-none transition";
 
   const TrendBadge = () => {
-    if (!info?.trend) return null;
+    if (!detail) return null;
+    const { trend, changePct } = hvzTrend(detail.q, detail.tmQ);
     const map = {
       steigend: { icon: TrendingUp, text: "steigend", cls: "text-sky-400" },
       fallend: { icon: TrendingDown, text: "fallend", cls: "text-teal-400" },
       gleich: { icon: Minus, text: "gleichbleibend", cls: "text-gray-400" },
     } as const;
-    const t = map[info.trend];
+    const t = map[trend];
     const Icon = t.icon;
     return (
       <span className={`inline-flex items-center gap-1 text-sm ${t.cls}`}>
         <Icon className="w-4 h-4" /> {t.text}
-        {info.changePct != null && Math.abs(info.changePct) >= 1 && (
-          <span className="text-gray-500">({info.changePct > 0 ? "+" : ""}{Math.round(info.changePct)} %)</span>
+        {changePct != null && Math.abs(changePct) >= 1 && (
+          <span className="text-gray-500">({changePct > 0 ? "+" : ""}{Math.round(changePct)} % ggü. Vortag)</span>
         )}
       </span>
     );
   };
 
+  // Grafik alle 15 Min neu laden
+  const graphBucket = Math.floor(Date.now() / 900000);
+
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-white font-semibold flex items-center gap-2">
-          <Waves className="w-5 h-5 text-teal-400" strokeWidth={1.75} /> Wasserführung
+          <Waves className="w-5 h-5 text-teal-400" strokeWidth={1.75} /> Pegel · Wasserführung
         </h2>
         <button
           onClick={() => { setAdding((v) => !v); setResults([]); setQ(""); }}
           className="inline-flex items-center gap-1.5 text-sm text-teal-400 hover:text-teal-300 transition"
         >
-          <Plus className="w-4 h-4" /> Gewässer
+          <Plus className="w-4 h-4" /> Pegel
         </button>
       </div>
 
-      {/* Gewässer hinzufügen */}
+      {/* Pegel hinzufügen */}
       {adding && (
         <div className="space-y-2 bg-gray-800/50 rounded-xl p-3">
           <div className="flex gap-2">
@@ -137,33 +140,44 @@ export default function WaterWatchlist() {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") runSearch(); }}
-              placeholder="Gewässer suchen (z.B. Obere Argen)"
+              placeholder="HVZ-Pegel suchen (z.B. Argen, Epplings)"
               className={inputClass}
             />
-            <button onClick={runSearch} className="px-3 bg-teal-600 hover:bg-teal-500 text-white rounded-xl transition shrink-0">
+            <button onClick={() => runSearch()} className="px-3 bg-teal-600 hover:bg-teal-500 text-white rounded-xl transition shrink-0">
               <Search className="w-4 h-4" />
             </button>
           </div>
+          <div className="flex flex-wrap gap-1.5">
+            {["Argen", "Bodensee", "Schussen"].map((s) => (
+              <button
+                key={s}
+                onClick={() => runSearch(s)}
+                className="text-xs px-2.5 py-1 rounded-full bg-gray-800 text-gray-300 border border-gray-700 hover:border-teal-500 transition"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
           {searching && <p className="text-gray-500 text-sm">Suche…</p>}
-          {results.map((r, i) => (
+          {results.map((g, i) => (
             <button
               key={i}
-              onClick={() => addWater(r)}
+              onClick={() => addGauge(g)}
               className="w-full text-left bg-gray-800 hover:bg-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 transition"
             >
-              <span className="text-white">{r.shortName}</span>
-              <span className="text-gray-500 block text-xs truncate">{r.name}</span>
+              <span className="text-white">{g.name}</span>
+              <span className="text-gray-500 block text-xs truncate">{g.gew} · Pegel {g.dasa}</span>
             </button>
           ))}
           {!searching && q && results.length === 0 && (
-            <p className="text-gray-500 text-sm">Nichts gefunden — anderen Namen probieren.</p>
+            <p className="text-gray-500 text-sm">Kein Pegel gefunden — anderen Namen probieren (nur Baden-Württemberg).</p>
           )}
         </div>
       )}
 
       {/* Auswahl */}
       {waters.length === 0 ? (
-        <p className="text-gray-500 text-sm">Noch keine Gewässer. Tippe auf „＋ Gewässer" und such deinen Fluss.</p>
+        <p className="text-gray-500 text-sm">Noch kein Pegel. Tippe auf „＋ Pegel" und such deinen HVZ-Pegel (z.B. „Argen").</p>
       ) : (
         <div className="flex items-center gap-2">
           <select
@@ -176,11 +190,6 @@ export default function WaterWatchlist() {
             ))}
           </select>
           {selected && (
-            <button onClick={() => renameWater(selected)} className="px-3 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-xl text-gray-400 hover:text-teal-400 transition shrink-0" title="Umbenennen">
-              <Pencil className="w-4 h-4" />
-            </button>
-          )}
-          {selected && (
             <button onClick={() => removeWater(selected.id)} className="px-3 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-xl text-gray-400 hover:text-red-400 transition shrink-0" title="Entfernen">
               <Trash2 className="w-4 h-4" />
             </button>
@@ -190,56 +199,60 @@ export default function WaterWatchlist() {
 
       {/* Anzeige */}
       {selected && (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {loadingInfo ? (
-            <p className="text-gray-500 text-sm">Lade Wasserführung…</p>
-          ) : info?.current == null ? (
-            <p className="text-gray-500 text-sm">Für dieses Gewässer keine Wasserführung verfügbar (z.B. stehendes Gewässer).</p>
+            <p className="text-gray-500 text-sm">Lade HVZ-Pegel…</p>
+          ) : noGauge || !detail ? (
+            <p className="text-gray-500 text-sm">Kein HVZ-Pegel in der Nähe dieses Eintrags. Tippe auf „＋ Pegel" und wähle einen HVZ-Pegel (Baden-Württemberg).</p>
           ) : (
             <>
               <div className="flex items-end justify-between">
                 <div>
-                  <p className="text-2xl font-semibold text-white leading-none">{formatDischarge(info.current)}</p>
+                  <p className="text-2xl font-semibold text-white leading-none">{fmtQ(detail.q)}</p>
+                  <p className="text-gray-400 text-sm mt-1">
+                    Wasserstand {detail.w != null ? `${detail.w} ${detail.wUnit}` : "–"}
+                  </p>
                   <div className="mt-1"><TrendBadge /></div>
                 </div>
-              </div>
-              {info.series.length > 1 && (
-                <div className="space-y-1">
-                  <p className="text-gray-500 text-xs">Abflussmenge (m³/s) · 3 Tage zurück → heute → 4 Tage Prognose</p>
-                  <ResponsiveContainer width="100%" height={110}>
-                    <LineChart data={info.series} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
-                      <XAxis
-                        dataKey="date"
-                        tick={{ fill: "#9ca3af", fontSize: 10 }}
-                        tickFormatter={(d: string) => { const p = d.split("-"); return `${p[2]}.${p[1]}.`; }}
-                        interval="preserveStartEnd"
-                        minTickGap={22}
-                      />
-                      <YAxis
-                        width={38}
-                        tick={{ fill: "#9ca3af", fontSize: 10 }}
-                        domain={["auto", "auto"]}
-                        tickFormatter={(v: number) => (v >= 10 ? String(Math.round(v)) : v.toFixed(1))}
-                      />
-                      <Tooltip
-                        contentStyle={{ backgroundColor: "#1f2937", border: "none", borderRadius: "8px", color: "#fff", fontSize: "12px" }}
-                        labelFormatter={(d: any) => { const p = String(d).split("-"); return `${p[2]}.${p[1]}.${p[0]}`; }}
-                        formatter={(v: any) => [`${Number(v).toFixed(2)} m³/s`, "Abfluss"]}
-                      />
-                      {info.today && (
-                        <ReferenceLine
-                          x={info.today}
-                          stroke="#64748b"
-                          strokeDasharray="3 3"
-                          label={{ value: "heute", position: "top", fill: "#94a3b8", fontSize: 10 }}
-                        />
-                      )}
-                      <Line type="monotone" dataKey="value" stroke="#2dd4bf" strokeWidth={2} dot={{ r: 2, fill: "#2dd4bf" }} />
-                    </LineChart>
-                  </ResponsiveContainer>
+                <div className="text-right">
+                  {detail.qTime && <p className="text-gray-500 text-xs">Stand:<br />{detail.qTime}</p>}
                 </div>
+              </div>
+
+              {(detail.tmQ != null || detail.tmW != null) && (
+                <p className="text-gray-500 text-xs">
+                  Tagesmittel Vortag: {detail.tmQ != null ? fmtQ(detail.tmQ) : "–"}
+                  {detail.tmW != null ? ` · ${detail.tmW} cm` : ""}
+                  {detail.tmDate ? ` (${detail.tmDate})` : ""}
+                </p>
               )}
-              <p className="text-gray-600 text-xs">Modellierte Wasserführung (Open-Meteo) · rechts der „heute“-Linie = Prognose · kein amtlicher cm-Pegel</p>
+
+              {/* HVZ-Abflussgrafik (Original der Hochwasservorhersagezentrale) */}
+              <div className="space-y-1">
+                <p className="text-gray-500 text-xs">Abfluss-Verlauf (HVZ-Originalgrafik)</p>
+                <div className="bg-white rounded-lg p-1 overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`/api/hvz/graph?id=${detail.dasa}&type=2002&t=${graphBucket}`}
+                    alt={`Abfluss-Verlauf Pegel ${detail.name}`}
+                    className="w-full h-auto"
+                  />
+                </div>
+              </div>
+
+              <a
+                href={hvzPegelUrl(detail.dasa)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm text-teal-400 hover:text-teal-300 transition"
+              >
+                <ExternalLink className="w-4 h-4" /> Bei HVZ Pegel-Info öffnen
+              </a>
+
+              <p className="text-gray-600 text-xs">
+                Echte Messwerte der Hochwasservorhersagezentrale Baden-Württemberg (ungeprüfte Rohdaten).
+                W = Wasserstand, Q = Abfluss.
+              </p>
             </>
           )}
         </div>
