@@ -8,6 +8,7 @@ import {
   Scale, Thermometer, Cloud, RefreshCw, ArrowDown, Users,
 } from "lucide-react";
 import BitePrediction from "./components/BitePrediction";
+import { cacheSet, cacheGet } from "../lib/offlineDb";
 
 export default function Home() {
   const [fishCount, setFishCount] = useState(0);
@@ -80,62 +81,81 @@ useEffect(() => {
     }
     setAuthChecked(true);
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("username, full_name, avatar_url")
-      .eq("id", userId)
-      .single();
-
-    if (profile?.username) {
-      setUserName(profile.username);
-    } else if (profile?.full_name) {
-      setUserName(profile.full_name);
-    } else {
-      setUserName("");
+    // Sofort aus lokalem Cache anzeigen (funktioniert auch offline)
+    const cached = await cacheGet<any>("dashboard");
+    if (cached) {
+      setUserName(cached.userName ?? "");
+      setAvatarUrl(cached.avatarUrl ?? null);
+      setFishCount(cached.fishCount ?? 0);
+      setSessionCount(cached.sessionCount ?? 0);
+      setTotalTime(cached.totalTime ?? "");
+      setLastCatch(cached.lastCatch ?? null);
     }
 
-    setAvatarUrl(profile?.avatar_url || null);
+    const online = typeof navigator !== "undefined" ? navigator.onLine : true;
 
-    const { data: sessions } = await supabase
-      .from("sessions")
-      .select("*")
-      .eq("user_id", userId);
+    if (online) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("username, full_name, avatar_url")
+        .eq("id", userId)
+        .single();
+      const uName = profile?.username || profile?.full_name || "";
+      const aUrl = profile?.avatar_url || null;
+      setUserName(uName);
+      setAvatarUrl(aUrl);
 
-    if (!sessions) return;
+      const { data: sessions } = await supabase
+        .from("sessions")
+        .select("*")
+        .eq("user_id", userId);
 
-    const sessionsThisYear = sessions.filter((s: any) =>
-      s.start_time?.startsWith(currentYear.toString())
-    );
-    setSessionCount(sessionsThisYear.length);
+      if (sessions) {
+        const sessionsThisYear = sessions.filter((s: any) =>
+          s.start_time?.startsWith(currentYear.toString())
+        );
+        const sCount = sessionsThisYear.length;
+        setSessionCount(sCount);
 
-    let totalMinutes = 0;
-    sessionsThisYear.forEach((s: any) => {
-      if (!s.start_time) return;
-      const start = new Date(s.start_time).getTime();
-      const end = s.end_time ? new Date(s.end_time).getTime() : Date.now();
-      let diffMinutes = Math.floor((end - start) / (1000 * 60));
-      if (diffMinutes > 0 && diffMinutes < 24 * 60) totalMinutes += diffMinutes;
-    });
+        let totalMinutes = 0;
+        sessionsThisYear.forEach((s: any) => {
+          if (!s.start_time) return;
+          const start = new Date(s.start_time).getTime();
+          const end = s.end_time ? new Date(s.end_time).getTime() : Date.now();
+          let diffMinutes = Math.floor((end - start) / (1000 * 60));
+          if (diffMinutes > 0 && diffMinutes < 24 * 60) totalMinutes += diffMinutes;
+        });
+        const tTime = `${Math.floor(totalMinutes / 60)}h`;
+        setTotalTime(tTime);
 
-    setTotalTime(`${Math.floor(totalMinutes / 60)}h`);
+        const { data: catches } = await supabase
+          .from("catches")
+          .select("*, sessions(location)")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false });
 
-    const { data: catches } = await supabase
-      .from("catches")
-      .select("*, sessions(location)")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
+        let fCount = 0;
+        let lCatch: any = null;
+        if (catches) {
+          fCount = catches.filter((c: any) =>
+            !c.is_foreign && c.created_at?.slice(0, 4) === currentYear.toString()
+          ).length;
+          lCatch = catches.find((c: any) => !c.is_foreign) || null;
+          setFishCount(fCount);
+          setLastCatch(lCatch);
+        }
 
-    if (catches) {
-      setFishCount(catches.filter((c: any) =>
-        !c.is_foreign && c.created_at?.slice(0, 4) === currentYear.toString()
-      ).length);
-      // Letzter Fang: erster eigener Fang (Begleiter-Fänge werden übersprungen)
-      setLastCatch(catches.find((c: any) => !c.is_foreign) || null);
+        // Fürs Offline-Dashboard lokal spiegeln
+        cacheSet("dashboard", {
+          userName: uName, avatarUrl: aUrl,
+          fishCount: fCount, sessionCount: sCount, totalTime: tTime, lastCatch: lCatch,
+        });
+      }
     }
 
     const storedId = localStorage.getItem("activeSessionId");
 
-    if (storedId) {
+    if (storedId && online && Number(storedId) > 0) {
       const { data } = await supabase
         .from("sessions").select("*").eq("id", storedId).single();
       setActiveSession(data);
@@ -146,7 +166,7 @@ useEffect(() => {
       setSessionCatches(sc || []);
 
       logWeather(Number(storedId));
-    } else {
+    } else if (!storedId) {
       setActiveSession(null);
     }
   };
